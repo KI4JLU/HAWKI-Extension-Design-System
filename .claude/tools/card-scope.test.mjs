@@ -48,9 +48,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
-  CROSS_REVIEW_PATHS,
+  CONTRACT_REVIEW_PATHS,
   assertResolvable,
-  crossReviewMatch,
+  contractReviewMatch,
   parseNameStatusZ,
   parseNulPathList,
 } from './card-scope.mjs'
@@ -62,19 +62,19 @@ const SCRIPT = fileURLToPath(new URL('./card-scope.mjs', import.meta.url))
 //
 // This is the one path list that survived the tiering. It is not a review depth: every card
 // gets one full independent review. It decides whether the MANDATORY SECOND MODEL
-// (`cross-review`) applies, which is a CLAUDE.md architecture invariant. The oracle is
+// (`contract-review`) applies, which is a CLAUDE.md architecture invariant. The oracle is
 // CLAUDE.md's published-contract surface plus `docs/DESIGN_SYSTEM.md`, hand-checked, not read
 // off a run of the script.
 // ---------------------------------------------------------------------------
 
 describe('the trigger-path list (oracle: CLAUDE.md + docs/DESIGN_SYSTEM.md)', () => {
   it('has the 6 entries the published contract requires', () => {
-    expect(CROSS_REVIEW_PATHS).toHaveLength(6)
+    expect(CONTRACT_REVIEW_PATHS).toHaveLength(6)
     // Named individually, because each is here for its own reason: the two shipped-CSS
     // spellings card 06 has not yet chosen between, the export barrel, the contract document,
     // and the two guardrails that enforce the contract (narrowing one narrows every later
     // review).
-    expect(CROSS_REVIEW_PATHS).toEqual([
+    expect(CONTRACT_REVIEW_PATHS).toEqual([
       'src/styles/',
       'styles/',
       'src/index.ts',
@@ -84,20 +84,20 @@ describe('the trigger-path list (oracle: CLAUDE.md + docs/DESIGN_SYSTEM.md)', ()
     ])
   })
 
-  it('crossReviewMatch distinguishes prefix entries from exact entries', () => {
-    expect(crossReviewMatch('src/styles/tokens/deep/colors.css')).toBe('src/styles/')
-    expect(crossReviewMatch('src/styles')).toBe('src/styles/')
-    expect(crossReviewMatch('docs/DESIGN_SYSTEM.md')).toBe('docs/DESIGN_SYSTEM.md')
+  it('contractReviewMatch distinguishes prefix entries from exact entries', () => {
+    expect(contractReviewMatch('src/styles/tokens/deep/colors.css')).toBe('src/styles/')
+    expect(contractReviewMatch('src/styles')).toBe('src/styles/')
+    expect(contractReviewMatch('docs/DESIGN_SYSTEM.md')).toBe('docs/DESIGN_SYSTEM.md')
     // Not a prefix match: the exact entry must not swallow neighbours.
-    expect(crossReviewMatch('docs/DESIGN_SYSTEM.md.bak')).toBeNull()
-    expect(crossReviewMatch('src/styles.ts')).toBeNull()
+    expect(contractReviewMatch('docs/DESIGN_SYSTEM.md.bak')).toBeNull()
+    expect(contractReviewMatch('src/styles.ts')).toBeNull()
     // A component is NOT on the list: it is reviewed like any other card, and only the
-    // contract surface pulls in a second model.
-    expect(crossReviewMatch('src/components/button/Button.svelte')).toBeNull()
+    // contract surface pulls in a second pass.
+    expect(contractReviewMatch('src/components/button/Button.svelte')).toBeNull()
   })
 
   it('--guarded-paths prints the list, with no repository and no git state', () => {
-    // The single-copy rule made mechanical: the cross-review gate and the PM guard hook read the
+    // The single-copy rule made mechanical: the contract-review gate and the PM guard hook read the
     // list from here instead of keeping their own copy, and a refusal decision has to be
     // answerable before anything has been edited — hence no repo argument.
     //
@@ -276,7 +276,7 @@ describe('real git: mandatory scenarios', () => {
     const out = runTool(repo)
     expect(out.status).toBe(0)
     expect(pathsOf(out.json)).toEqual(['docs/note.md'])
-    expect(out.json.crossReviewRequired).toBe(false)
+    expect(out.json.contractReviewRequired).toBe(false)
   })
 
   it('a tracked modification and an untracked new file are collected together', () => {
@@ -296,26 +296,26 @@ describe('real git: mandatory scenarios', () => {
     expect(loose.sources).toEqual(['untracked'])
   })
 
-  it('a shipped token file makes the second model mandatory', () => {
-    // Oracle: CLAUDE.md declares `cross-review` mandatory for the published contract, and the
+  it('a shipped token file makes the second pass mandatory', () => {
+    // Oracle: CLAUDE.md declares `contract-review` mandatory for the published contract, and the
     // test modified a path under it. Not a review depth — the review is full either way; this is the flag
-    // that says a second model must also read it.
+    // that says a second reader must also read it.
     const repo = repoWith({ 'src/styles/tokens.css': ':root {}\n' })
     write(repo, 'src/styles/tokens.css', ':root { --color-text: oklch(0 0 0); }\n')
 
     const out = runTool(repo)
-    expect(out.json.crossReviewRequired).toBe(true)
-    expect(out.json.crossReviewPaths).toEqual(['src/styles/tokens.css'])
-    // `crossReviewPaths` names the FILE; `crossReview` names the matched ENTRY, which for a
+    expect(out.json.contractReviewRequired).toBe(true)
+    expect(out.json.contractReviewPaths).toEqual(['src/styles/tokens.css'])
+    // `contractReviewPaths` names the FILE; `contractReview` names the matched ENTRY, which for a
     // prefix entry is the directory. Asserted separately so a change that collapsed the two
     // is visible.
-    expect(out.json.files[0].crossReview).toBe('src/styles/')
+    expect(out.json.files[0].contractReview).toBe('src/styles/')
   })
 
-  it('a real staged rename contributes BOTH paths, and the old one triggers cross-review', () => {
+  it('a real staged rename contributes BOTH paths, and the old one triggers contract-review', () => {
     // `git mv` of a shipped token file to a .md name. Both paths of a rename belong to the
     // card, so the OLD path (src/styles/tokens/colors.css) still matches the trigger
-    // list and the second model is mandatory. A tool that only read the new path would see
+    // list and the second pass is mandatory. A tool that only read the new path would see
     // nothing but a Markdown file. Oracle: the test performed the rename, so it knows both
     // paths.
     const repo = repoWith({
@@ -330,8 +330,8 @@ describe('real git: mandatory scenarios', () => {
       'docs/removed.md',
       'src/styles/tokens/colors.css',
     ])
-    expect(out.json.crossReviewRequired).toBe(true)
-    expect(out.json.crossReviewPaths).toEqual(['src/styles/tokens/colors.css'])
+    expect(out.json.contractReviewRequired).toBe(true)
+    expect(out.json.contractReviewPaths).toEqual(['src/styles/tokens/colors.css'])
 
     const oldEntry = out.json.files.find((f) => f.path === 'src/styles/tokens/colors.css')
     expect(oldEntry.renameSource).toBe(true)
@@ -447,7 +447,7 @@ describe('real git: mandatory scenarios', () => {
     expect(out.status).toBe(0)
     expect(out.json.files).toEqual([])
     expect(out.json.fileCount).toBe(0)
-    expect(out.json.crossReviewRequired).toBe(false)
+    expect(out.json.contractReviewRequired).toBe(false)
   })
 })
 
@@ -541,8 +541,8 @@ describe('real git: work partly committed on the branch', () => {
       'docs/moved.md',
       'src/styles/tokens/colors.css',
     ])
-    expect(out.json.crossReviewRequired).toBe(true)
-    expect(out.json.crossReviewPaths).toEqual(['src/styles/tokens/colors.css'])
+    expect(out.json.contractReviewRequired).toBe(true)
+    expect(out.json.contractReviewPaths).toEqual(['src/styles/tokens/colors.css'])
   })
 
   it('main...HEAD alone would be the wrong set too — the union is what is correct', () => {

@@ -5,7 +5,7 @@
  * WHAT THIS IS, AND WHAT IT USED TO BE
  * ------------------------------------
  * This file was `review-tier.mjs`, and its headline job was to compute a review tier
- * (`quick` / `full` / `full+cross-review`). **The tiering has been removed** — measured
+ * (`quick` / `full` / `full+contract-review`). **The tiering has been removed** — measured
  * across seven runs, a full review cost 98k–180k tokens and the first real run of the cheap
  * tier cost 114k, i.e. inside the same band. It saved nothing, because the cheap half was
  * only the reading: the judge still had to run the four gates and re-derive every finding,
@@ -16,17 +16,17 @@
  * What survives is the part that was worth having on its own merits: **collecting the file
  * set of one card, correctly**, and emitting the diff text a reviewer actually reads. That
  * collection fixed three confirmed silent-failure bugs (see COLLECTION HARDENING) and it
- * carries the `claim-base` scoping rule. The reviewer and the `cross-review` skill both still
+ * carries the `claim-base` scoping rule. The reviewer and the `contract-review` skill both still
  * need to know which files belong to a card.
  *
  * WHAT IT DOES NOT DO ANY MORE
  * ----------------------------
  * No tier, no `driver`, no `reason`, and no inert-path allowlist. There is nothing left for
  * an "inert" judgement to decide: reading surface is not chosen by file extension any more.
- * The one path-list that stays is `CROSS_REVIEW_PATHS` — not a tier, but the trigger list
- * for the mandatory second model, which is a CLAUDE.md architecture invariant older than
- * the tiering ever was. It is reported per file (`crossReview`) and once for the whole set
- * (`crossReviewRequired`), and it is printable with `--guarded-paths` so that no prompt
+ * The one path-list that stays is `CONTRACT_REVIEW_PATHS` — not a tier, but the trigger list
+ * for the mandatory second review pass over the published contract, which is a CLAUDE.md
+ * architecture invariant older than the tiering ever was. It is reported per file (`contractReview`) and once for the whole set
+ * (`contractReviewRequired`), and it is printable with `--guarded-paths` so that no prompt
  * file ever needs a second hand-maintained copy of it.
  *
  * WHAT GIT ACTUALLY PRINTS (verified against git 2.51.2 in scratch repos, 2026-08-18)
@@ -155,9 +155,9 @@
  *                  (`... | xargs -0 git log --`). NOT a way to produce the diff — see
  *                  EMITTING THE DIFF above.
  *   --guarded-paths
- *                  print CROSS_REVIEW_PATHS, one per line, and exit. The single copy of
+ *                  print CONTRACT_REVIEW_PATHS, one per line, and exit. The single copy of
  *                  the trigger-path list, for any prompt that needs to consult it
- *                  (`cross-review`'s mandatory gate, and the PM guard hook, which imports it).
+ *                  (`contract-review`'s mandatory gate, and the PM guard hook, which imports it).
  *
  * EXIT CODES  0 = ok (including an empty file set) | 2 = error
  */
@@ -185,7 +185,7 @@ export const IGNORE_FILE_BASENAMES = new Set(['.gitignore'])
 
 /**
  * THE TRIGGER-PATH LIST — the **published contract** surface for which CLAUDE.md makes the
- * external second model (`cross-review`) mandatory.
+ * second review pass (`contract-review`) mandatory.
  *
  * This is the single copy. It lives here, in code, for two reasons: it has a test, and it
  * has more than one consumer. `code-reviewer.md` carries the *rationale* for the entries
@@ -194,7 +194,7 @@ export const IGNORE_FILE_BASENAMES = new Set(['.gitignore'])
  * prompt file — in the repo this harness was ported from, three review rounds were spent
  * repairing hand-maintained copies of exactly this list.
  *
- * It is a *mandatory-second-model* trigger, not a review depth: every card gets one full
+ * It is a *mandatory-second-pass* trigger, not a review depth: every card gets one full
  * independent review whether or not a path here is touched. Entries ending in `/` match by
  * prefix, the rest match exactly.
  *
@@ -225,9 +225,9 @@ export const IGNORE_FILE_BASENAMES = new Set(['.gitignore'])
  * Not here on purpose: individual component files. A component is reviewed like any other card;
  * it is the token/CSS/export contract that a second reader is mandatory for. Also not here:
  * `package.json`, `vite.config.ts`, `.storybook/` and CI — the guard refuses those to the main
- * session (`HOOK_ONLY_PATHS` in the hook), but a dependency bump does not need Gemini.
+ * session (`HOOK_ONLY_PATHS` in the hook), but a dependency bump does not need a second pass.
  */
-export const CROSS_REVIEW_PATHS = [
+export const CONTRACT_REVIEW_PATHS = [
   'src/styles/',
   'styles/',
   'src/index.ts',
@@ -237,17 +237,17 @@ export const CROSS_REVIEW_PATHS = [
 ]
 
 /**
- * The cross-review entry this path matches, or null.
+ * The contract-review entry this path matches, or null.
  *
  * A trailing-slash entry matches by prefix AND matches the slashless path exactly: a
- * reviewer found that `crossReviewMatch('src/styles')` returned null, so a
+ * reviewer found that `contractReviewMatch('src/styles')` returned null, so a
  * FILE literally named `src/styles` (no slash) would not have triggered the
- * mandatory second model. It cannot occur in this repo's current layout — the directory of
+ * mandatory second pass. It cannot occur in this repo's current layout — the directory of
  * that name already exists, so a file cannot take the same path — but the two-character fix
  * costs nothing and removes the reasoning step.
  */
-export function crossReviewMatch(repoRelativePath) {
-  for (const entry of CROSS_REVIEW_PATHS) {
+export function contractReviewMatch(repoRelativePath) {
+  for (const entry of CONTRACT_REVIEW_PATHS) {
     if (entry.endsWith('/')) {
       if (repoRelativePath.startsWith(entry) || repoRelativePath === entry.slice(0, -1)) {
         return entry
@@ -709,7 +709,7 @@ export function collectFileSet({ cwd = process.cwd(), base = 'main', useBase = t
       existsInWorktree: exists,
       renameSource: rec.renameSource,
       contentWarning: contentWarnings.get(rec.path) ?? null,
-      crossReview: crossReviewMatch(rec.path),
+      contractReview: contractReviewMatch(rec.path),
     })
   }
 
@@ -725,7 +725,7 @@ export function collectFileSet({ cwd = process.cwd(), base = 'main', useBase = t
 }
 
 /**
- * Collect the file set and report whether the mandatory second model applies.
+ * Collect the file set and report whether the mandatory second pass applies.
  *
  * No tier: the review depth is not a function of the file set any more (see the header).
  * `fileCount: 0` is the one derived fact a caller still keys off — it is what puts the
@@ -734,12 +734,12 @@ export function collectFileSet({ cwd = process.cwd(), base = 'main', useBase = t
  */
 export function computeCardScope(options = {}) {
   const collected = collectFileSet(options)
-  const crossReviewPaths = collected.files.filter((f) => f.crossReview).map((f) => f.path)
+  const contractReviewPaths = collected.files.filter((f) => f.contractReview).map((f) => f.path)
   return {
     fileCount: collected.files.length,
     files: collected.files,
-    crossReviewRequired: crossReviewPaths.length > 0,
-    crossReviewPaths,
+    contractReviewRequired: contractReviewPaths.length > 0,
+    contractReviewPaths,
     base: collected.base,
     committedCommits: collected.committedCommits,
     committedWorkIncluded: collected.committedWorkIncluded,
@@ -785,13 +785,13 @@ const USAGE = `card-scope — which files belong to this card, and their diff.
 
   --base <ref>       also scope committed changes <ref>...HEAD (default: main)
   --no-base          DIAGNOSTIC ONLY — never for scoping a review (see SCOPING below)
-  --format json      file set + sources + notes + the cross-review trigger (default)
+  --format json      file set + sources + notes + the contract-review trigger (default)
   --format diff      the review input itself: real diff text for every path in the set
   --format paths0    NUL-separated absolute paths, for pathspec use (\`| xargs -0 git log --\`).
                      NOT a way to get the diff — it is empty for committed and untracked
                      paths. Use --format diff.
-  --guarded-paths    print the trigger-path list (CROSS_REVIEW_PATHS), one per line, and exit.
-                     The single copy: \`cross-review\`'s mandatory gate reads it from here, and
+  --guarded-paths    print the trigger-path list (CONTRACT_REVIEW_PATHS), one per line, and exit.
+                     The single copy: \`contract-review\`'s mandatory gate reads it from here, and
                      the PM guard hook imports it, instead of either keeping its own.
 
 SCOPING A BRANCH THAT CARRIES SEVERAL CARDS
@@ -836,8 +836,8 @@ function emitDiff(result, write) {
   if (result.fileCount === 0) {
     write('# empty file set: this card changed no file at all — an explicit result, not "nothing found"\n')
   }
-  if (result.crossReviewRequired) {
-    write(`# cross-review MANDATORY (CLAUDE.md): ${result.crossReviewPaths.join(', ')}\n`)
+  if (result.contractReviewRequired) {
+    write(`# contract-review MANDATORY (CLAUDE.md): ${result.contractReviewPaths.join(', ')}\n`)
   }
   for (const note of result.notes) write(`# note: ${note}\n`)
 
@@ -906,7 +906,7 @@ export function main(argv) {
   if (options.guardedPaths) {
     // Deliberately independent of any repository: a prompt asking "may I touch this path?"
     // must be able to read the list without a git state.
-    process.stdout.write(`${CROSS_REVIEW_PATHS.join('\n')}\n`)
+    process.stdout.write(`${CONTRACT_REVIEW_PATHS.join('\n')}\n`)
     return 0
   }
   let result

@@ -61,7 +61,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { CROSS_REVIEW_PATHS } from '../tools/card-scope.mjs'
+import { CONTRACT_REVIEW_PATHS } from '../tools/card-scope.mjs'
 import {
   GUARDED_PATHS,
   HOOK_ONLY_PATHS,
@@ -142,16 +142,16 @@ function expectRefused(result, entry) {
 
 describe('the guarded surface (oracle: CLAUDE.md’s list + the single-copy rule)', () => {
   it('is the imported spec/auth list plus the infrastructure list, in that order', () => {
-    // The composition, asserted structurally: if `CROSS_REVIEW_PATHS` gains or loses an entry,
+    // The composition, asserted structurally: if `CONTRACT_REVIEW_PATHS` gains or loses an entry,
     // the guard follows automatically. There is no second copy to update.
-    expect(GUARDED_PATHS).toEqual([...CROSS_REVIEW_PATHS, ...HOOK_ONLY_PATHS])
-    expect(CROSS_REVIEW_PATHS).toHaveLength(6)
+    expect(GUARDED_PATHS).toEqual([...CONTRACT_REVIEW_PATHS, ...HOOK_ONLY_PATHS])
+    expect(CONTRACT_REVIEW_PATHS).toHaveLength(6)
     expect(HOOK_ONLY_PATHS).toHaveLength(8)
     expect(GUARDED_PATHS).toHaveLength(14)
   })
 
   it('keeps the two lists disjoint — the second is an extension, not a copy', () => {
-    const overlap = HOOK_ONLY_PATHS.filter((p) => CROSS_REVIEW_PATHS.includes(p))
+    const overlap = HOOK_ONLY_PATHS.filter((p) => CONTRACT_REVIEW_PATHS.includes(p))
     expect(overlap).toEqual([])
   })
 
@@ -162,7 +162,7 @@ describe('the guarded surface (oracle: CLAUDE.md’s list + the single-copy rule
     const code = readFileSync(GUARD_SRC, 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/^\s*\/\/.*$/gm, '')
-    const restated = CROSS_REVIEW_PATHS.filter((p) => code.includes(p))
+    const restated = CONTRACT_REVIEW_PATHS.filter((p) => code.includes(p))
     expect(restated).toEqual([])
     expect(code).toContain("from '../tools/card-scope.mjs'")
   })

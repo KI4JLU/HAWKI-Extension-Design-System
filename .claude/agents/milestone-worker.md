@@ -102,5 +102,5 @@ with `git`/Bash when the card needs the behavioural reference.
 What you produced (file paths), how you verified it (real command output), any open TODOs or marked
 uncertainties, whether the change touches the published contract (the shipped styles/tokens, the
 export barrel, `docs/DESIGN_SYSTEM.md`, or the guardrails — so the caller knows to run
-`cross-review`), and confirmation the card is now in `Code Review` — or still in `In Progress`
+`contract-review`), and confirmation the card is now in `Code Review` — or still in `In Progress`
 with a stated blocker.

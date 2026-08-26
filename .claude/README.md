@@ -28,9 +28,10 @@ developer ──▶ project-manager (main session, this is you)
                      │
                      ├─ empty diff for the card ──▶ same reviewer, verification-only branch
                      │
-                     └─ published-contract paths ──▶ after PASS, the cross-review skill
-                                                     (Gemini via gemini-cli) is MANDATORY
-                                                     per CLAUDE.md
+                     └─ published-contract paths ──▶ after PASS, the contract-review skill
+                                                     runs a SECOND code-reviewer pass with an
+                                                     adversarial brief. MANDATORY per CLAUDE.md;
+                                                     no external service involved.
                 │
                 developer ◀── report: who verified what, ready to commit (never auto-committed)
 ```
@@ -54,12 +55,12 @@ and the PM scopes, sequences and reports.
 | `../docs/DESIGN_SYSTEM.md` | The written contract this package promises consumers — scope triage and styling contract, with the evidence behind each decision. Read alongside CLAUDE.md. |
 | `skills/project-manager/SKILL.md` | The pipeline and the PM's contract. |
 | `skills/kanban-doku/SKILL.md` | Board coordinates (workspace/board/list/label ids), the "`In Progress` mirrors reality" rule, the `Needs Decision` and `Blocked` conventions, and the `review:` verdict-label convention including the `toggle_card_label` toggle trap. |
-| `skills/cross-review/SKILL.md` | The external reader (Gemini via the gemini-cli MCP): the mandatory second-model gate for the published contract. Advisory input, used unmodified — the PM passes explicit paths and a diff it generated itself. |
+| `skills/contract-review/SKILL.md` | The mandatory second pass over the published contract: a **fresh** `code-reviewer` (never the one that already passed the card) with a narrower, hostile brief — find the way this breaks a consumer who upgrades without reading the changelog. Advisory input; the PM passes explicit paths and a diff it generated itself, and owns what it does with the findings. **Deliberately depends on no external MCP** — see the note below. |
 | `skills/storybook-vitest-addon/SKILL.md` | Installing and troubleshooting the story-as-test harness (cards 07/11), and the decisions those cards forbid copying from JLU-DS. |
-| `tools/card-scope.mjs` | **Which files belong to this card, and their diff.** Single source of truth for the `CROSS_REVIEW_PATHS` trigger list (`--guarded-paths`), so no prompt file keeps a copy. Handles what prose got wrong twice upstream: NUL-separated git output only, both paths of a rename, quoted/spaced paths, deletions, untracked files, work already committed on the branch, and an explicit error instead of a quietly shorter file set. It also closed three reproduced ways the file set came back too small: the INDEX diffed against HEAD as its own source, a gitlink at mode 160000, and a path newly hidden by an ignore pattern the diff itself adds — plus exit 2 for `assume-unchanged`/`skip-worktree`. Scope with the card's `claim-base` sha; `--base main` over-scopes, `--no-base` is diagnostic only. |
+| `tools/card-scope.mjs` | **Which files belong to this card, and their diff.** Single source of truth for the `CONTRACT_REVIEW_PATHS` trigger list (`--guarded-paths`), so no prompt file keeps a copy. Handles what prose got wrong twice upstream: NUL-separated git output only, both paths of a rename, quoted/spaced paths, deletions, untracked files, work already committed on the branch, and an explicit error instead of a quietly shorter file set. It also closed three reproduced ways the file set came back too small: the INDEX diffed against HEAD as its own source, a gitlink at mode 160000, and a path newly hidden by an ignore pattern the diff itself adds — plus exit 2 for `assume-unchanged`/`skip-worktree`. Scope with the card's `claim-base` sha; `--base main` over-scopes, `--no-base` is diagnostic only. |
 | `tools/card-scope.test.mjs` | The oracle: real scratch repositories, asserting the collected set against what each test itself created. 52 tests. |
 | `agents/*.md` | The five subagents. Tool lists are deliberately narrow — the reviewer has no edit tools, the worker has no web access. |
-| `agents/code-reviewer.md` | Writes **every** verdict. Carries the **rationale** for the mandatory-second-model list and the semantic contract clause (the list itself lives in `tools/card-scope.mjs`), and establishes the card's file set by running that script itself. Also **stamps the verdict as a label** on the card: `review: approved` / `review: changes requested`, plus the additive `review: comments` for non-blocking findings. |
+| `agents/code-reviewer.md` | Writes **every** verdict. Carries the **rationale** for the mandatory-second-pass list and the semantic contract clause (the list itself lives in `tools/card-scope.mjs`), and establishes the card's file set by running that script itself. Also **stamps the verdict as a label** on the card: `review: approved` / `review: changes requested`, plus the additive `review: comments` for non-blocking findings. |
 | `settings.json` | Read-only allowlist, SessionStart board-reconcile reminder, and the wiring of the PM guard to `Edit|Write|NotebookEdit`. |
 | `hooks/pm-no-direct-edit.sh` | The guard's launcher: finds its sibling `pm-guard.mjs` with pure bash (no external command but `node`) and **maps every failure to exit 2**, because only exit 2 blocks a tool call. Clears `NODE_OPTIONS`/`NODE_PATH` first, so a `--require` preload cannot pre-empt the decision. |
 | `hooks/pm-guard.mjs` | The decision. Refuses the guarded surface in the main session and nothing else; subagents pass through on `agent_id`. Imports the 6 published-contract entries from `tools/card-scope.mjs` (single copy) and adds 8 infrastructure entries of its own. Every uncertainty blocks: malformed payload, absent/bad `cwd`, no git repository, an unknown tool, a missing path, a target the filesystem will not resolve. **The protected root is the guard's own location** (`SELF_ROOT`), never the payload's `cwd` alone. A guarded file is refused however it is reached: absolute, repo-relative, through `..`, from a foreign repository's `cwd`, through a symlink, and case- and Unicode-normalisation-insensitively, because macOS is. |
@@ -71,7 +72,7 @@ and the PM scopes, sequences and reports.
 refuses exactly this surface, and nothing else:
 
 - **The published contract** — `src/styles/`, `styles/`, `src/index.ts`, `docs/DESIGN_SYSTEM.md`,
-  `scripts/check-token-usage.sh`, `eslint-plugin/`: the 6 entries of `CROSS_REVIEW_PATHS`, imported
+  `scripts/check-token-usage.sh`, `eslint-plugin/`: the 6 entries of `CONTRACT_REVIEW_PATHS`, imported
   from `tools/card-scope.mjs`. These are what a consumer cannot see changing until it breaks, plus the
   two guardrails that enforce them — a change narrowing a guardrail narrows every later review.
 - **Build and delivery** — `package.json`, `vite.config.ts`, `.storybook/`, `.github/workflows/`,
@@ -112,6 +113,26 @@ the PM skill state that **a refused Edit or Write is never retried through Bash*
 *paths*, not prose: this file, `CLAUDE.md`, the skills and the agent prompts are ordinary files that
 the main session may edit.
 
+## No per-developer tooling
+
+Everything a mandatory gate needs is in the repo and available to whoever clones it: `git`, `node`,
+and the project's own scripts. Nothing here calls an MCP server or a CLI that has to be installed and
+authenticated per machine.
+
+That is a change from the harness this was ported from, and from this port's own first version: the
+`contract-review` gate originally called a cross-model MCP (Gemini via `gemini-cli`). It was removed
+because that server is configured on one developer's machine and is not shared by the project team —
+so for everyone else the gate would have failed or silently done nothing while `CLAUDE.md` still
+called it mandatory. **A gate that only fires for one person is not a gate**, and one that reads as
+enforced while doing nothing is worse than an absent one.
+
+What replaced it: a **second `code-reviewer` pass** with a narrower, hostile brief, spawned fresh so
+it is not defending the verdict it already gave. The limit is written into the skill rather than
+papered over — the second reader is the same model family as the first, so it brings a new context
+and a different brief, not an independent architecture, and a shared blind spot can survive both
+passes. If a second model family is ever configured **for the team**, it plugs into that skill as an
+additional reader; it does not come back as a per-machine dependency.
+
 ## Design rules worth keeping
 
 - **Verification is independent or it is not verification.** The `code-reviewer` has no edit tools, so
@@ -119,7 +140,7 @@ the main session may edit.
   worker's report. A defect always goes back to a worker.
 - **The judge is never the agent with a stake in the outcome.** The PM scopes the file set, sequences
   the calls and reports — it does not decide whether a review passed. The one bounded exception is the
-  Step 5 cross-review gate, which runs *after* an independent verdict exists and can only add a FAIL
+  Step 5 contract-review gate, which runs *after* an independent verdict exists and can only add a FAIL
   round.
 - **A finding nobody can find again was not really reported.** The verdict is stamped on the card as a
   `review:` label, and **non-blocking** findings go under a greppable `NON-BLOCKING:` heading in the

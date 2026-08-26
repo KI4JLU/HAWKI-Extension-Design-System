@@ -50,7 +50,7 @@ this session for the **published contract** — `src/styles/`, `styles/`, `src/i
 `.claude/settings*.json`, `.claude/hooks/` and `.claude/tools/`.
 `node .claude/tools/card-scope.mjs --guarded-paths` prints the contract half of that list; the hook
 imports it. There is no sentinel and nothing to lift — an edit there is a card, a worker and a
-reviewer, plus the mandatory cross-review where CLAUDE.md requires it.
+reviewer, plus the mandatory contract-review where CLAUDE.md requires it.
 
 **A refused Edit or Write is never retried through Bash.** The hook sees the file-editing tools
 only, so `sed -i`, a heredoc redirect or `tee` on a guarded path is *not* mechanically blocked —
@@ -78,7 +78,7 @@ What you *do* yourself:
   comes back red on a card, the fix is a FAIL round, never a flag. (On ad-hoc work you did yourself
   you are the author rather than the judge, so repairing your own breakage is part of the work — but
   the autofix-flag rule still holds: a gate that writes to the tree is no longer a gate.)
-- run the `cross-review` skill to obtain a second model's findings at the Step 5 gate;
+- run the `contract-review` skill to obtain a second reader's findings at the Step 5 gate;
 - report to the developer and ask the questions only they can answer.
 
 If you catch yourself about to patch a file that belongs to a card, stop and delegate. "Fix the bug
@@ -180,8 +180,8 @@ checks the architecture invariants, and records a `REVIEW (...): PASS|FAIL` note
   ```
 
   It prints the file set — each path with its git status, its source (committed / worktree / index /
-  untracked / newly-ignored) and whether it still exists — plus `crossReviewRequired`,
-  `crossReviewPaths` and a `notes` array. Pass the file set to the reviewer, and **repeat any WARNING
+  untracked / newly-ignored) and whether it still exists — plus `contractReviewRequired`,
+  `contractReviewPaths` and a `notes` array. Pass the file set to the reviewer, and **repeat any WARNING
   from `notes` in your report**: that is where "something was being hidden from the scan" is recorded.
   The reviewer runs the script itself as well and reviews the union if its set differs — your call is a
   first pass, not the last word.
@@ -221,11 +221,19 @@ Then:
   the findings and ask the developer how to proceed.
 - **PASS** → continue to Step 5.
 
-**Step 5 — Cross-review gate.** If the change touches the **published contract** — the shipped
+**Step 5 — Contract-review gate.** If the change touches the **published contract** — the shipped
 styles/tokens, the export barrel, `docs/DESIGN_SYSTEM.md`, or the guardrails that enforce it — run
-the `cross-review` skill now (mandatory for those paths per CLAUDE.md). The authoritative path list is
-`CROSS_REVIEW_PATHS` in `.claude/tools/card-scope.mjs` — `crossReviewRequired` in the Step 4 output is
-computed from it, and `--guarded-paths` prints it. Do not keep a second copy of that list anywhere.
+the `contract-review` skill now (mandatory for those paths per CLAUDE.md). The authoritative path list
+is `CONTRACT_REVIEW_PATHS` in `.claude/tools/card-scope.mjs` — `contractReviewRequired` in the Step 4
+output is computed from it, and `--guarded-paths` prints it. Do not keep a second copy of that list
+anywhere.
+
+The skill spawns a **fresh** `code-reviewer` with a narrower, hostile brief — never the invocation
+that already passed the card in Step 4, which would be defending its own verdict. **It calls no
+external service.** An earlier version used a cross-model MCP that only one developer has configured;
+a mandatory gate that silently does nothing for the rest of the team is worse than no gate, so it was
+removed. Do not reintroduce a per-machine MCP dependency here — if a second model family is ever set
+up **for the team**, it plugs into the skill as an additional reader.
 
 Verify its findings against the code yourself before passing them on; if it surfaces a real defect,
 that is a new FAIL round (Step 3).
@@ -233,25 +241,27 @@ that is a new FAIL round (Step 3).
 Checking those findings yourself is the **one** place you rule on a finding, and it is bounded: the
 review verdict for this card was already rendered by `code-reviewer` in Step 4, so what you settle here
 is not a verdict but whether a *new* FAIL round is warranted. You hold no veto over that judge and you
-cannot turn a FAIL into a PASS — you can only add a FAIL round. The residual risk is real and named: an
-external finding you wrongly dismiss here stays dismissed. The mitigation: **a finding you cannot
+cannot turn a FAIL into a PASS — you can only add a FAIL round. The residual risk is real and named: a
+second-pass finding you wrongly dismiss here stays dismissed. The mitigation: **a finding you cannot
 settle from the code in front of you is not settled** — hand it back to the `code-reviewer`, or
 straight to a worker as a FAIL round, instead of ruling on it. **Do not reopen this as an undecided
 question; if you think the balance is wrong, raise it with the developer as a change to the design.**
 
 Two further rules for this call:
-- **Always include `CLAUDE.md` and `docs/DESIGN_SYSTEM.md` in the `paths` you pass.** The external
-  reader has no access to this repo's conventions otherwise, so its "missed invariants" check would be
-  generic — it cannot flag a primitive token used directly, a missing `@layer` statement, a
-  `data-theme` selector where `html.darkMode` is the contract, or an exported component with no
-  story, if it has never seen the rule.
-- **No secrets leave the repo.** The diff goes to a third-party service, so CLAUDE.md's non-goal
-  applies unchanged: never send real credential values (an npm publish token is the realistic one
-  here). A live credential in the diff is itself a FAIL and the diff is not sent at all. That one you
-  report immediately — it is a fact about the tree, not a judgment about the code.
+- **Always include `CLAUDE.md` and `docs/DESIGN_SYSTEM.md` in what the second reader is given.**
+  Its "missed invariants" check would otherwise be generic — it cannot flag a primitive token used
+  directly, a missing `@layer` statement, a `data-theme` selector where `html.darkMode` is the
+  contract, or an exported component with no story, if it has never seen the rule.
+- **Tell the developer explicitly that the published contract changed**, and what a consumer would
+  have to do about it: nothing, a rename to follow, or a version bump that has to be major. A
+  contract change is reported to a human in as many words, never buried inside a PASS.
+- **Nothing leaves the repo — keep it that way.** No diff is sent anywhere now, and if a team-wide
+  external reader is added later, CLAUDE.md's non-goal applies unchanged: never send real credential
+  values (an npm publish token is the realistic one here). A live credential in the diff is itself a
+  FAIL — a fact about the tree, reported immediately, not a judgment about the code.
 
 **Step 6 — Report and stop.** Tell the developer: what changed, what the `code-reviewer` independently
-re-derived (with real output), the cross-review outcome if Step 5 ran, and that it is ready to commit.
+re-derived (with real output), the contract-review outcome if Step 5 ran, and that it is ready to commit.
 
 **Read the card's `review:` labels out to the developer.** `get_card` once the reviewer is done and
 look at which verdict label it stamped (`review: approved` or `review: changes requested`, plus the
@@ -292,11 +302,11 @@ Default to pausing after the first card unless the developer said up front to do
   its report, then act. Never report a result an agent has not delivered yet.
 - **Do not launder anyone's claim into your own.** If the worker says tests pass and nobody reproduced
   it, report that gap rather than the claim. The same holds for the external reviewer: an unverified
-  cross-review finding is a hypothesis, never a fact. And never describe work you did yourself as
+  contract-review finding is a hypothesis, never a fact. And never describe work you did yourself as
   verified — nothing verified it.
 
 ## Return to the developer
 
 Concise: what was implemented, who verified what with which evidence (real numbers/test output), the
-Step 5 cross-review outcome if applicable, anything left open or uncertain, and one explicit next-step
+Step 5 contract-review outcome if applicable, anything left open or uncertain, and one explicit next-step
 question — commit now? rework? next card?

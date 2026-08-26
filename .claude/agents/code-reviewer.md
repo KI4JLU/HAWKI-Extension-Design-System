@@ -19,7 +19,7 @@ across seven runs a full review cost 98k–180k tokens and the one cheap-mode ru
 same band, because the expensive half is running the gates and re-deriving the findings, which *is*
 the job. The unreviewed work is what the developer asked the PM for ad hoc, which never becomes a card
 and never reaches you. The only two variations that remain are **verification-only** (a card with an
-*empty* diff) and the **mandatory second model** for the published-contract paths — neither is a
+*empty* diff) and the **mandatory second pass** for the published-contract paths — neither is a
 review depth.
 
 ## Inputs
@@ -37,7 +37,7 @@ node .claude/tools/card-scope.mjs --base <the card's claim-base sha>   # fallbac
 
 It prints the file set — each path with its git status, its source (`committed` / `worktree` /
 `index` / `untracked` / `newly-ignored`) and whether it still exists in the worktree — plus
-`crossReviewRequired`, `crossReviewPaths` and a `notes` array. **Read the `notes`**: that is where the
+`contractReviewRequired`, `contractReviewPaths` and a `notes` array. **Read the `notes`**: that is where the
 tool records that something was being hidden from it (a newly-ignored file pulled back in, staged
 content the worktree does not show), and any WARNING there belongs in your verdict.
 `--format diff` gives the diff text itself; `--format paths0` gives NUL-separated absolute paths for
@@ -86,14 +86,15 @@ In that mode:
 - A claim you cannot check (an external system you have no access to, a third party's answer) is a
   finding to state, not something to wave through as PASS.
 
-## When the second model is mandatory
+## When the second pass is mandatory
 
-CLAUDE.md makes the `cross-review` skill **mandatory** for the **published-contract** surface. This is
-an architecture invariant, not a review depth: the card gets this full review either way, and the
-trigger only decides whether a second model additionally reads it.
+CLAUDE.md makes the `contract-review` skill **mandatory** for the **published-contract** surface. This
+is an architecture invariant, not a review depth: the card gets this full review either way, and the
+trigger only decides whether a second reader — a fresh `code-reviewer` with an adversarial brief —
+additionally reads it. No external service is involved; the skill says why.
 
-**The authoritative list is `CROSS_REVIEW_PATHS` in `.claude/tools/card-scope.mjs`** — and
-`crossReviewRequired` in the script's output is computed from it. Print it with
+**The authoritative list is `CONTRACT_REVIEW_PATHS` in `.claude/tools/card-scope.mjs`** — and
+`contractReviewRequired` in the script's output is computed from it. Print it with
 `node .claude/tools/card-scope.mjs --guarded-paths`. Do not restate the list here or anywhere else: it
 has exactly one copy on purpose. What lives here is the *rationale*.
 
@@ -101,10 +102,10 @@ has exactly one copy on purpose. What lives here is the *rationale*.
 
 Any file that **defines, aliases, renames, removes or re-exports** something a consumer can depend on
 — a design token, a CSS custom property, a cascade-layer name, an exported component, prop or type,
-the theme hook, or the contract a guardrail enforces — belongs in the mandatory-second-model set even
+the theme hook, or the contract a guardrail enforces — belongs in the mandatory-second-pass set even
 when the script does not flag it. **Escalating on that judgment is always allowed and always safe**,
-because the file gets this full review regardless; the clause only decides whether the second model is
-additionally called. Match against the verbs and the object, not against a filename pattern: a token
+because the file gets this full review regardless; the clause only decides whether the second pass is
+additionally run. Match against the verbs and the object, not against a filename pattern: a token
 renamed inside a component's `<style>` block, a `@layer` name introduced in a new file, or an export
 quietly dropped from a barrel are all contract changes wherever they live.
 
@@ -123,15 +124,15 @@ Rationale for the entries that are not self-evident:
   component introduces or renames a token or an export.
 
 An incomplete list is survivable: a contract path nobody listed still gets this full review, it just
-does not get the second model. Upstream, ten paths were added *after* a review found them missing, and
+does not get the second pass. Upstream, ten paths were added *after* a review found them missing, and
 in none of those cases did the agent following the documented method find the gap — each came from an
 independent or external reviewer. That track record is why the list is not trusted to be complete.
 
 ### Escalation is one-way
 
-- **Escalate to "and the second model is mandatory" on your own authority** if the semantic clause
+- **Escalate to "and the second pass is mandatory" on your own authority** if the semantic clause
   applies or your own file set is wider than the caller's. Name the escalation in the verdict.
-- **Never downward.** You do not drop a `cross-review` requirement the script computed or the caller
+- **Never downward.** You do not drop a `contract-review` requirement the script computed or the caller
   named, however small the diff looks. If you believe it fires needlessly, review as if it applies and
   raise it as a finding.
 
@@ -180,7 +181,7 @@ independent or external reviewer. That track record is why the list is not trust
    - **The harness's own tooling changed without its tests**: if the diff touches
      `.claude/tools/card-scope.mjs` or `.claude/hooks/pm-guard.mjs`, run
      `npx vitest run .claude/tools/card-scope.test.mjs .claude/hooks/pm-guard.test.mjs` and check
-     that a shortened `CROSS_REVIEW_PATHS`/`HOOK_ONLY_PATHS`, or a collection source removed, came
+     that a shortened `CONTRACT_REVIEW_PATHS`/`HOOK_ONLY_PATHS`, or a collection source removed, came
      with an argument and not just a passing suite. Both narrow what a later review can see.
 6. **Hygiene/scope:** nothing off-limits got committed (`git check-ignore`), no credentials or tokens
    introduced (`git diff` for keys/secrets/`.env` values — including an npm publish token in
@@ -197,7 +198,7 @@ into one unreadable line (see the tooling caveats in `kanban-doku`). Format:
 
 `REVIEW (independent agent, verified <YYYY-MM-DD>): PASS|FAIL. <what you re-derived + exact numbers + any discrepancies>.`
 
-**Quote the script's `fileCount`, the `--base` you used and `crossReviewRequired`** in the note, plus
+**Quote the script's `fileCount`, the `--base` you used and `contractReviewRequired`** in the note, plus
 any WARNING from its `notes`. That is what makes a later reader able to check the review's scope
 without re-deriving the file set.
 
@@ -257,7 +258,7 @@ Stamp `review: approved` (removing a leftover `review: changes requested`), and 
 `review: comments` if you left anything under `NON-BLOCKING:`.
 Report the verdict, the re-derived evidence, and state plainly that it is **ready to commit**. You do
 not stage or commit anything. If the diff touched the published contract, say so explicitly: the
-caller must additionally run the `cross-review` skill before reporting the work as done.
+caller must additionally run the `contract-review` skill before reporting the work as done.
 
 ## On FAIL (any blocking discrepancy)
 
@@ -268,6 +269,6 @@ round left it there. Report the issues so a worker can fix them next pass.
 ## Return to the caller
 
 PASS or FAIL, the key numbers/output you re-derived and whether each matched, any discrepancies,
-whether a `cross-review` is required, and what you did to the card — including **which `review:`
+whether a `contract-review` is required, and what you did to the card — including **which `review:`
 labels you set and removed**, and, if you set `review: comments`, the non-blocking findings themselves
 so the caller can read them out to the developer.

@@ -15,7 +15,7 @@
 #
 # WHY THIS FILE IS A THIN WRAPPER
 # The decision lives in `pm-guard.mjs`, next to this file: it needs the guarded list, and that
-# list has exactly one copy — `CROSS_REVIEW_PATHS` in `../tools/card-scope.mjs`. A Node hook
+# list has exactly one copy — `CONTRACT_REVIEW_PATHS` in `../tools/card-scope.mjs`. A Node hook
 # IMPORTS it; a shell hook would have had to shell out to `card-scope.mjs --guarded-paths` and
 # parse the output. Same single source, one less moving part, and one process instead of two.
 # It also means the logic is unit-testable from `npm test` (`pm-guard.test.mjs`).

@@ -40,7 +40,7 @@ kanban board, and spawns subagents for the carded work. The pipeline and its rul
   `.npmrc`, and the harness's own `.claude/settings*.json`, `.claude/hooks/` and `.claude/tools/`.
   Those change through the pipeline only — card, worker, independent reviewer. Nothing lifts the
   guard; subagents pass through it because their hook input carries `agent_id`. The contract half has
-  one copy (`CROSS_REVIEW_PATHS` in `.claude/tools/card-scope.mjs`, which the hook imports) and both
+  one copy (`CONTRACT_REVIEW_PATHS` in `.claude/tools/card-scope.mjs`, which the hook imports) and both
   halves are tested (`.claude/hooks/pm-guard.test.mjs`).
 - **A refused Edit or Write is never retried through Bash.** The hook matches the file-editing
   tools only, so `sed -i`, a heredoc redirect or `tee` would go through — which makes this an
@@ -74,7 +74,7 @@ Available today:
   `node .claude/tools/card-scope.mjs --base <claim-base sha>` (fallback: `--base main`)
 - Produce the diff text a reviewer reads:
   `node .claude/tools/card-scope.mjs --base <claim-base sha> --format diff`
-- Print the mandatory-cross-review trigger paths: `node .claude/tools/card-scope.mjs --guarded-paths`
+- Print the mandatory-contract-review trigger paths: `node .claude/tools/card-scope.mjs --guarded-paths`
 
 Expected once card 06/07/11 land (do not invoke before they exist):
 
@@ -106,10 +106,17 @@ Each of these is written down in `docs/DESIGN_SYSTEM.md` with the reasoning and 
   story, it isn't supported.** `docs/*.md` is for decision records only.
 - **The published surface does not change silently.** A removed or renamed export, token or CSS custom
   property needs an explicit human decision, not a worker's judgment.
-- **Any change touching the published contract must additionally go through the `cross-review`
-  skill** before it is reported as ready. The authoritative path list is `CROSS_REVIEW_PATHS` in
-  `.claude/tools/card-scope.mjs` (`--guarded-paths`) — one copy, referenced by `code-reviewer`, the
-  PM's Step 5 gate and imported by the PM guard hook, never restated.
+- **Any change touching the published contract must additionally go through the `contract-review`
+  skill** before it is reported as ready — a second review pass by a fresh `code-reviewer` with an
+  adversarial brief, plus an explicit statement to the developer that the contract changed. The
+  authoritative path list is `CONTRACT_REVIEW_PATHS` in `.claude/tools/card-scope.mjs`
+  (`--guarded-paths`) — one copy, referenced by `code-reviewer`, the PM's Step 5 gate and imported by
+  the PM guard hook, never restated.
+- **The harness depends on no per-developer tooling.** Everything a mandatory gate needs must be in
+  the repo and available to whoever clones it — `git`, `node`, and the project's own scripts. A gate
+  wired to an MCP or CLI that only one machine has does nothing for everyone else while still reading
+  as enforced, which is worse than not having it. (This is why the second reader is another
+  `code-reviewer` and not an external model: see `.claude/skills/contract-review/SKILL.md`.)
 - **Upstream HAWKI is GPLv3 and the licence/provenance question is deferred** (card KI-589). Port
   behaviour, cite `path:line`, and do not paste large verbatim blocks into the repo, cards or prompts
   to external services. The decouplings the triage table names (the chat-plugin import in

@@ -67,7 +67,7 @@
  * THE GUARDED LIST IS NOT DUPLICATED HERE
  * --------------------------------------
  * The spec/auth/credential entries are IMPORTED from `../tools/card-scope.mjs`
- * (`CROSS_REVIEW_PATHS`, 19 entries, the single copy — also printable with
+ * (`CONTRACT_REVIEW_PATHS`, 19 entries, the single copy — also printable with
  * `--guarded-paths`). A real ES import, not a subprocess: same single source, no shelling out
  * from a shell hook, no output parsing, and one node process for the whole hook (measured:
  * ~26 ms for `node card-scope.mjs --guarded-paths`, versus ~18 ms per `python3` start — the
@@ -76,9 +76,9 @@
  * so a future "quick fix" that pastes the list in fails the suite.
  *
  * `HOOK_ONLY_PATHS` below is an EXTENSION, not a second copy: those paths appear in no other
- * list. They are deliberately not added to `CROSS_REVIEW_PATHS`, because that array has one
- * specific meaning — "a second model is mandatory for this change" (a CLAUDE.md invariant) —
- * and a Dockerfile edit does not need Gemini. Two different questions, so two lists, with no
+ * list. They are deliberately not added to `CONTRACT_REVIEW_PATHS`, because that array has one
+ * specific meaning — "a second review pass is mandatory for this change" (a CLAUDE.md
+ * invariant) — and a build-config edit does not need one. Two different questions, so two lists, with no
  * overlapping entries.
  */
 import { execFileSync } from 'node:child_process'
@@ -86,7 +86,7 @@ import { lstatSync, readFileSync, readlinkSync, realpathSync, statSync } from 'n
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { CROSS_REVIEW_PATHS } from '../tools/card-scope.mjs'
+import { CONTRACT_REVIEW_PATHS } from '../tools/card-scope.mjs'
 
 /**
  * The repository this guard protects, taken from the guard's own location on disk.
@@ -110,9 +110,9 @@ export const SELF_ROOT = realpathSync(SELF_ROOT_LEXICAL)
 
 /**
  * The harness/infrastructure half of the guarded surface. Extension, never a duplicate — no
- * entry here is in `CROSS_REVIEW_PATHS`, and the test asserts the two sets are disjoint.
+ * entry here is in `CONTRACT_REVIEW_PATHS`, and the test asserts the two sets are disjoint.
  *
- * These are paths the main session must not hand-edit, but which do not need a second model:
+ * These are paths the main session must not hand-edit, but which do not need a second pass:
  * changing them is carded work, not a contract change.
  *
  *   package.json             the `exports` map, `peerDependencies`, `files` and the publish
@@ -168,7 +168,7 @@ export const HOOK_ONLY_PATHS = [
 ]
 
 /** The effective guarded surface: the imported spec/auth list plus the infrastructure list. */
-export const GUARDED_PATHS = [...CROSS_REVIEW_PATHS, ...HOOK_ONLY_PATHS]
+export const GUARDED_PATHS = [...CONTRACT_REVIEW_PATHS, ...HOOK_ONLY_PATHS]
 
 /**
  * Tools this guard knows how to read a target path out of, and the keys to read.
@@ -214,7 +214,7 @@ export function guardedMatch(repoRelativePath) {
       if (re.test(rel) || (!e.includes('/') && re.test(base))) return entry
     } else if (e.endsWith('/')) {
       // Prefix entry — and the slashless form exactly, so a FILE named `src/auth` cannot slip
-      // past the directory entry (the same reasoning as `crossReviewMatch` in card-scope.mjs).
+      // past the directory entry (the same reasoning as `contractReviewMatch` in card-scope.mjs).
       if (rel.startsWith(e) || rel === e.slice(0, -1)) return entry
     } else if (rel === e) {
       return entry
@@ -489,7 +489,7 @@ hooks and tools. Print the contract half with:
     node .claude/tools/card-scope.mjs --guarded-paths
 
 It changes through the pipeline only: a card, a milestone-worker, an independent
-code-reviewer, plus the mandatory cross-review where CLAUDE.md requires it. There is no lift, no
+code-reviewer, plus the mandatory contract-review where CLAUDE.md requires it. There is no lift, no
 sentinel and no exception for a one-line change; "the developer asked me to" is what a card
 records, not a bypass.
 
