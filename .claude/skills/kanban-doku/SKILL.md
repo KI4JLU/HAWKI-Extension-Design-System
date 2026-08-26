@@ -24,17 +24,22 @@ copying a JLU-DS solution without re-deciding it.
 |---|---|---|
 | `Backlog` | `16dowyjbely1` | Known future work, not scheduled yet |
 | `To Do` | `0mqxxufa9daa` | Scheduled, ready to pick up next |
+| `Needs Decision` | `3kcslqu68n0u` | **Blocked on user input** — see rule below |
 | `In Progress` | `zryn9k9c0362` | **Actively being worked right now** |
 | `Code Review` | `l9y5adsvupqi` | Finished, awaiting review/verification |
 | `Done` | `2v3ylflyl9be` | Finished and verified |
 
-**Blocked-on-a-decision rule:** this board has **no `Needs Decision` list** (unlike the JLU Design
-System board). When a card is blocked on input only the user can give (a go/no-go, a scope choice,
-infrastructure, priorities): attach the **`Blocked`** label, leave the card in its current list, and
-**append a "Decision needed:" section to the card description** stating the concrete question and
-the options, so the user can decide asynchronously from the board alone. Once decided, remove the
-label and record the decision (with date and who decided) in the description — the existing decision
-records use "(decided by Sten Seegel)" inline, keep that style.
+**`Needs Decision` rule:** whenever a card is blocked on input only the user can give
+(a go/no-go, a scope choice, infrastructure, priorities), move it to `Needs Decision`
+instead of leaving it in Backlog/To Do — and **append a "Decision needed:" section to the
+card description** stating the concrete question and the options, so the user can decide
+asynchronously from the board alone. Once decided, move the card back into the normal flow
+and record the decision (with date) in the description. The existing decision records write
+this as "(decided by Sten Seegel)" inline — keep that style.
+
+> The list was created after the other five, and this kanban server has no list-reorder tool,
+> so it renders **last** on the board (after `Done`) rather than between `To Do` and
+> `In Progress`. Position is cosmetic; drag it in the Kan UI if it should sit in flow order.
 
 **Labels** — publicIds:
 
@@ -42,13 +47,12 @@ records use "(decided by Sten Seegel)" inline, keep that style.
 |---|---|---|
 | `Bug` | `20el4z2kxx7v` | |
 | `Feature` | `g6msk799lkvk` | |
-| `Enhancement` | `g0ynlfbnrl2z` | |
 | `Critical` | `8kmb2hkanyxy` | |
 | `Documentation` | `u4cxd8b31aht` | Decision records, governance, MDX pages |
 | `Refactor` | `345rkroyclqp` | |
 | `Test` | `57i5e2fgpbuo` | |
 | `Plan` | `1avp7ldq65y5` | |
-| `Blocked` | `8wkna354n4oa` | Blocked on user input — see rule above |
+| `Blocked` | `8wkna354n4oa` | Blocked on another card or an external dependency (for blocked on *user input*, use the `Needs Decision` list instead) |
 | `deferred` | `om6htw8b132h` | Decided to postpone (e.g. licence, package name) |
 | `prio high` | `ca5o45h72wmn` | |
 | `prio medium` | `wu7e79upms0f` | |

@@ -34,18 +34,16 @@ them into component documentation in the meantime.
 
 ## Commit messages
 
-Imperative summary line ending in the card ref, then a body explaining the *why* (wrapped at
-~72 chars):
+Conventional Commits, one short lowercase summary line:
 
 ```
-Add styling contract decision record (KI-568)
-
-Documents the token/cascade-layer/dark-mode contract the package
-promises consumers, based on reading app.css, all token files, ...
+feat(tokens): semantic alias for the avatar neutral fill
 ```
 
-- Summary: imperative mood, no `type(scope):` prefix — this repo does **not** use Conventional
-  Commits (that is the JLU-DS convention; don't carry it over).
-- Always reference the card: `(KI-###)`.
-- The body says what was verified and why the decision went that way, not what the diff shows.
+- Format: `type(scope): summary` — types: feat, fix, chore, docs, refactor, test, ci
+- Reference the card in the body: `KI-###`.
 - Do NOT add a `Co-Authored-By: Claude` trailer. Co-author trailers are for humans only.
+
+> The two commits that predate this file (`Add component inventory triage table (KI-567)`,
+> `Add styling contract decision record (KI-568)`) do not follow it. The convention above is
+> the one to use from here on — do not imitate the older style.
