@@ -1,6 +1,7 @@
-node_modules/
-.vite/
-dist/
-storybook-static/
-.DS_Store
+node_modules
+/dist
+/.svelte-kit
+/.vite
+coverage
 *.log
+.DS_Store
