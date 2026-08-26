@@ -1,0 +1,6 @@
+node_modules
+dist
+.svelte-kit
+docs
+package-lock.json
+.claude
