@@ -316,3 +316,76 @@ violation would be expected on card **14**, not 15. Not re-verified against the 
 pass (the board was being edited concurrently and a mid-review re-fetch risked the same stale-snapshot mistake
 flagged in the comment thread) — flagging for whoever owns cards 14/15 to confirm which one actually carries the
 `Avatar.svelte` fix before relying on it.
+
+# Storybook foundation
+
+Decision record for **KI-574 — "07 Storybook foundation — the single source of truth"**.
+
+## Story format: confirmed, no CSF3 fallback needed
+
+The card asked to confirm current `@storybook/addon-svelte-csf` support for the Storybook + Svelte 5 versions
+in use before committing to Svelte CSF over object-format CSF3. Checked directly against the installed
+versions (Storybook 10.5.10, Svelte 5.56.10, Vite 8.2.2, `@sveltejs/vite-plugin-svelte` 7.3.0):
+`@storybook/addon-svelte-csf@5.1.2`'s own `peerDependencies` cover all four (`storybook: '... || ^10.4.0-0'`,
+`svelte: '^5.0.0'`, `vite: '... || ^8.0.0'`, `@sveltejs/vite-plugin-svelte: '... || ^7.0.0'`). Support is current;
+stories are authored in Svelte CSF (`*.stories.svelte`) as the card recommends, no fallback needed.
+
+## `@storybook/addon-vitest` + Svelte CSF: a real integration bug, worked around
+
+Wiring `@storybook/addon-vitest`'s browser-mode (Playwright) project via `storybook add` reproducibly failed
+with a cascade of CJS-interop errors (`aria-query`, then `lz-string`, then `pretty-format`, each fixed
+individually only to reveal the next) when importing
+`@storybook/addon-vitest/dist/vitest-plugin/setup-file-with-project-annotations.js`. Root cause, found by
+reading the plugin's source directly: that internal file is loaded whenever `requiresProjectAnnotations()`
+returns true (the default, absent a `.storybook`-local setup file already calling `setProjectAnnotations`),
+but — unlike the plugin's other internal setup files — it is **not** in the plugin's own
+`optimizeDeps.include` list, so its deep CJS dependency tree is never pre-bundled and gets served raw to the
+browser. Fix: added `.storybook/vitest.setup.ts` calling `setProjectAnnotations` manually (the pre-10.3
+pattern) — this makes the plugin skip the buggy automatic path entirely, confirmed by its own log message
+("Found a setup file with setProjectAnnotations... skipping automatic provisioning"). A second, independent
+bug: the top-level `plugins: [svelte(), svelteTesting()]` in `vite.config.ts` leaked `svelteTesting()` into the
+browser-mode project via `extends: true`, and its injected setup broke with "Vitest failed to find the
+runner." Fix: moved `svelteTesting()` into the jsdom unit-test project's own `plugins`, leaving only `svelte()`
+shared at the root. Both fixes verified by three consecutive clean `npm run test` runs (unit tests + every
+story run as a test, per item 3 of the card).
+
+## `svelte-package` ships `*.stories.*` verbatim — same gap as KI-570's test files
+
+Confirmed again (see KI-570's record for the first instance): `@sveltejs/package@2.5.8` has no exclusion
+mechanism for any file under `src/lib`. Unlike test files, story files are meant to stay colocated with their
+component (the Storybook convention, and what item 2 of this card's own scope assumes) — moving them to a
+separate directory the way KI-570 moved `tests/` out was rejected as the fix here. Instead, `npm run build`
+runs `scripts/clean-dist-stories.mjs` after `svelte-package`, deleting `*.stories.*` and `*.mdx` from `dist/`
+post-hoc. Verified: `dist/` contains only `index.{js,d.ts}` and `Placeholder.svelte{,.d.ts}` after a full build.
+
+## Hosting: GitHub Pages, decided but explicitly not deployed
+
+Per Niklas Bender: GitHub Pages (via `build-storybook`), not Chromatic — and **nothing gets published
+anywhere in this pass**. `npm run build-storybook` exists and is verified working (produces
+`storybook-static/`, gitignored); no GitHub Actions deploy workflow, no Pages-enablement in repo settings.
+The DoD's "published URL reachable" is therefore knowingly left open — deploying is a separate, later action
+someone takes deliberately, not a side effect of this card.
+
+A CI workflow (`.github/workflows/ci.yml`) does exist — it runs `build`, `check`, `check:story-coverage`,
+`test`, and `lint` on every push/PR, since the card's "CI check that every exported component has a story"
+requirement needs *some* CI to run it in, and running it alongside the existing checks (rather than alone)
+is the natural place for it. This workflow only verifies; it has no deploy/publish step.
+
+## Governance MDX pages: live values, not hand-maintained tables
+
+Introduction, Tokens, Theming, Consumer integration and Contribution all live under `src/docs/*.mdx` —
+sibling to, not inside, `src/lib`, so `svelte-package` never touches them (no cleanup step needed for these,
+unlike stories). The Tokens page embeds a story (`src/docs/Tokens.stories.svelte`, via
+`<Story of={TokensStories.Live} />`) that reads registered custom properties straight off
+`getComputedStyle(document.documentElement)` — no code sample duplicated between the MDX and a story, per
+item 7 of the card. It correctly renders "no tokens defined yet" today, since card 08 hasn't landed; nothing
+here needs to change when it does.
+
+## Story-coverage check: demonstrated failing, not just asserted passing
+
+`scripts/check-story-coverage.mjs` parses `src/lib/index.ts`'s `.svelte` exports and fails if any lacks a
+sibling `*.stories.{svelte,ts,js}`. Per the card's explicit DoD wording ("demonstrate it, don't assert it"):
+run live against a temporarily-added component with no story (`DemoNoStory.svelte`, exported and then
+reverted) and confirmed a non-zero exit + the missing export named in the output; the same code path is also
+covered by `tests/check-story-coverage.test.ts`, which includes a test that adds a component without a story
+to a fixture and asserts the check flags exactly that one.

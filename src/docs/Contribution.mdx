@@ -1,0 +1,46 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Governance/Contribution" />
+
+# Contribution
+
+## Adding a component
+
+1. `src/lib/<Name>/<Name>.svelte` (or `src/lib/<Name>.svelte` for a single-file component) —
+   relative imports only, no `$lib` alias (a published package can't rely on a consumer defining
+   one).
+2. `<Name>.stories.svelte` next to it, in Svelte CSF (`@storybook/addon-svelte-csf`) — **one story
+   per supported variant, size and state, including the awkward ones**: disabled, loading, error,
+   overflowing text, icon-only, empty. `tags: ['autodocs']` on the meta generates the props table;
+   don't write a second one by hand.
+3. Export it from `src/lib/index.ts`.
+4. Interaction behaviour goes in a `play` function on the relevant story, not a separate test
+   file — `@storybook/addon-vitest` runs every story as a test (`npm run test`).
+
+## The rule this enforces
+
+**If it isn't in a story, it isn't supported.** `npm run check:story-coverage` fails when an
+exported component has no `.stories.svelte` file next to it — this is what makes that rule
+enforced rather than aspirational. It runs in CI on every PR.
+
+## Local checks before opening a PR
+
+```sh
+npm run build              # svelte-package -> dist/, with .d.ts
+npm run check               # svelte-check
+npm run check:story-coverage
+npm run test                 # vitest — unit tests + every story
+npm run lint                 # eslint + prettier --check
+```
+
+`npm run storybook` (dev) / `npm run build-storybook` (static build) for the docs UI itself.
+
+## Anti-drift rules
+
+- No code sample duplicated between an MDX governance page and a story — embed the story with
+  `<Story of={...} />` instead (see this page's own [Tokens](?path=/docs/governance-tokens--docs)
+  for an example).
+- The Tokens and Theming pages render live values read from the DOM/CSS; they are never a
+  hand-maintained table.
+- No parallel markdown component reference. If a `.md` file describes a component, delete the
+  description and point it at the story instead.

@@ -1,0 +1,23 @@
+import { Meta, Story } from '@storybook/addon-docs/blocks';
+import * as TokensStories from './Tokens.stories.svelte';
+
+<Meta title="Governance/Tokens" of={TokensStories} />
+
+# Tokens
+
+Two-tier model, per the styling contract decision record (KI-568, `docs/DESIGN_SYSTEM.md`):
+
+- **Primitives** — raw `oklch()` scales, e.g. `--color-accent-100..900`. Never reference these
+  directly from a component.
+- **Semantic aliases** — `--color-interactive`, `--color-text`, `--color-focus-ring`, etc.
+  Components reference semantic aliases only. `spacing`, `borders`, `radius`, `transitions` and
+  `typography` are single-tier scales with no primitive/semantic split.
+
+The table below is not hand-maintained — it reads whatever custom properties are actually
+registered on `<html>` at render time, live, via `getComputedStyle`. There is nothing to keep in
+sync by hand, and nothing to drift.
+
+<Story of={TokensStories.Live} />
+
+Until card 08 lands, the table above reads as empty, correctly — no token entry points exist in
+this package yet.

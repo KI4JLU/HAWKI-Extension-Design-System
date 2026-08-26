@@ -1,0 +1,44 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Governance/Consumer integration" />
+
+# Consumer integration
+
+For extension authors — how to install and render this package. This page is a thin pointer;
+component-level usage lives in each component's own stories, not here.
+
+## Install
+
+```sh
+npm install hawki-extension-design-system svelte@^5
+```
+
+`svelte` is a peer dependency — install it alongside, at the version this package's
+`peerDependencies` field declares.
+
+> The package name above is provisional (card 03 is deferred) and will change before the first
+> real publish (card 13). Check `package.json` on `main` for the current name.
+
+## Render
+
+Every component ships as a plain `.svelte` source file plus generated `.d.ts` — your own Svelte
+compiler processes it, so there's no duplicate-runtime risk and nothing pre-compiled against a
+Svelte version that isn't yours:
+
+```svelte
+<script>
+	import { Placeholder } from 'hawki-extension-design-system';
+</script>
+
+<Placeholder label="hello" />
+```
+
+(`Placeholder` is the only export today — see [Introduction](?path=/docs/governance-introduction--docs).)
+
+## Rendering mode
+
+Extensions render **standalone** — their own top-level HTML document, owning `<html>` — but the
+package supports the hosted case too (rendered inside an already-running HAWKI page). There is no
+iframe, no Web Component / Shadow DOM, no separate document root: DOM and CSS cascade are shared
+directly with whatever page the component ends up in. See
+[Theming](?path=/docs/governance-theming--docs) for which CSS entry point each mode loads.

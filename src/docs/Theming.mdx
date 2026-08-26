@@ -1,0 +1,39 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Governance/Theming" />
+
+# Theming
+
+Per the styling contract decision record (KI-568, `docs/DESIGN_SYSTEM.md`), the **entire**
+dark-mode contract is one selector:
+
+- Default (no class on `<html>`) is **light**.
+- `html.darkMode` switches to **dark**.
+
+That's it — no `data-theme` attribute, no `prefers-color-scheme` branch in any component
+stylesheet. This deliberately diverges from JLU-DS's `data-theme="dark"` convention; do not
+harmonise it.
+
+## In this Storybook
+
+The theme toolbar (top toolbar, globe/circle icon) toggles `html.darkMode` live, in both
+directions — see `.storybook/preview.ts`. It has nothing to visually toggle yet, because no token
+CSS exists (card 08); the wiring is in place so nothing further needs to change here once it
+does.
+
+## Two consumption modes, one rule each
+
+Per the consumption-model decision (also KI-568):
+
+- **Standalone** (an extension's own page) — loads `styles/full.css`, which opens the cascade
+  layer order for the whole document: `@layer reset, tokens, base, components, utilities;`. Safe
+  here only because the extension owns the entire document.
+- **Hosted** (rendered inside an already-running HAWKI page) — loads `styles/tokens.css`, which
+  never emits that bare statement. It only adds rules into whichever layer order HAWKI's own
+  bundler has already established, because asserting an order into a host document you don't own
+  is exactly the failure mode the contract exists to avoid (verified empirically — see the
+  decision record for the browser test that proved it).
+
+Neither file exists yet (card 08). Once it does, this section's job is done — the two entry
+points either exist and behave as documented, or this page is wrong and should be fixed, not
+copied elsewhere.

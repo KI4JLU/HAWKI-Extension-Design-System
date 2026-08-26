@@ -1,0 +1,38 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Governance/Introduction" />
+
+# HAWKI Extension Design System
+
+This Storybook **is** the design system's documentation — not a companion to it. A component's
+props and behaviour are documented in its stories and doc comments, and nowhere else. If a
+markdown file elsewhere in the repo describes a component, that description is stale by
+definition; the story is the source of truth.
+
+**The rule contributors are held to: if it isn't in a story, it isn't supported.** One story per
+supported variant, size and state — including the awkward ones (disabled, loading, error,
+overflowing text, icon-only, empty). A CI check enforces that every exported component has at
+least one story; see [Contribution](?path=/docs/governance-contribution--docs).
+
+## What lives here
+
+- **Component stories** — one file per component, colocated (`Button.svelte` +
+  `Button.stories.svelte`). Autodocs generates the props table from each story's meta.
+- **[Tokens](?path=/docs/governance-tokens--docs)** and **[Theming](?path=/docs/governance-theming--docs)**
+  — the design tokens and the dark-mode contract, rendered from live values, never a
+  hand-maintained table.
+- **[Consumer integration](?path=/docs/governance-consumer--docs)** — how an extension author
+  installs and renders this package.
+- **[Contribution](?path=/docs/governance-contribution--docs)** — how to add a component here.
+
+## No design-system component exists yet
+
+The only export today is `Placeholder` (`src/lib/Placeholder.svelte`) — a build-pipeline smoke
+test proving the package build, this Storybook, and the story-coverage check all work end to end.
+Real components start landing with card 14.
+
+## Package name
+
+`hawki-extension-design-system` is a provisional name (card 03 is deferred). It will be renamed
+before the first publish (card 13); internal imports are relative paths specifically so that
+rename touches one file, not every component.

@@ -22,14 +22,15 @@
 		"node": "^20.19.0 || >=22.12.0"
 	},
 	"scripts": {
-		"build": "svelte-package",
+		"build": "svelte-package && node scripts/clean-dist-stories.mjs",
 		"prepare": "npm run build",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
+		"check:story-coverage": "node scripts/check-story-coverage.mjs",
 		"format": "prettier --write .",
 		"lint": "eslint . && prettier --check .",
 		"test": "vitest run",
-		"storybook": "echo \"storybook is not set up yet — see card 07\" && exit 1",
-		"build-storybook": "echo \"storybook is not set up yet — see card 07\" && exit 1"
+		"storybook": "storybook dev -p 6006",
+		"build-storybook": "storybook build"
 	},
 	"peerDependencies": {
 		"svelte": "^5.0.0"
@@ -41,15 +42,27 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
+		"@storybook/addon-a11y": "^10.5.10",
+		"@storybook/addon-docs": "^10.5.10",
+		"@storybook/addon-svelte-csf": "^5.1.2",
+		"@storybook/addon-vitest": "^10.5.10",
+		"@storybook/svelte": "^10.5.10",
+		"@storybook/svelte-vite": "^10.5.10",
 		"@sveltejs/package": "^2.5.8",
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@testing-library/svelte": "^5.4.2",
+		"@types/node": "^26.3.0",
+		"@vitest/browser": "^4.1.11",
+		"@vitest/browser-playwright": "^4.1.11",
+		"@vitest/coverage-v8": "^4.1.11",
 		"eslint": "^10.9.1",
 		"eslint-plugin-svelte": "^3.23.0",
 		"globals": "^17.11.0",
 		"jsdom": "^30.0.1",
+		"playwright": "^1.62.1",
 		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^4.1.1",
+		"storybook": "^10.5.10",
 		"svelte": "^5.56.10",
 		"svelte-check": "^4.7.6",
 		"typescript": "~6.0.3",
