@@ -126,12 +126,16 @@ Independently re-verified against the actual comment/activity history (not just 
 
 # Styling contract
 
-Decision record for **KI-568 — "03 decision: styling contract — tokens, cascade layers, dark mode"**.
+Decision record for **KI-568 — "04 decision: styling architecture — HAWKI-native CSS or Tailwind"** (renamed
+from "03 decision: styling contract — tokens, cascade layers, dark mode" during the board renumbering; same
+card, same scope).
 
 Verified by cloning upstream `feature/svelte-frontend` and reading `resources/css/app.css`, every file under
 `resources/css/tokens/`, `resources/css/layers/`, `resources/css/properties.css`, `.svelte/ComponentCssLayerProcessor.js`,
 `vite.config.ts`, `resources/js/plugins/core/stores/ThemeStore.svelte.ts`, and every component `<style>` block —
-not inferred from the card's own summary.
+not inferred from the card's own summary. The cascade-layer collision risk below was additionally verified
+empirically in a browser (two static test pages, `getComputedStyle` read back after each step), not just reasoned
+about on paper.
 
 ## Consumption model
 
@@ -206,17 +210,55 @@ The `components` layer is injected per component at Svelte-preprocess time — c
 which component's compiled CSS the bundler happens to encounter first, which depends on the JS module graph — a
 bundler-specific detail no package can promise to a consumer.
 
-**Contract requirement:** every entry point this package ships must open with an explicit bare statement —
+**Revised after review — the bare statement cannot go in both entry points.** A first draft of this contract
+required the bare statement in every entry point, including the hosted one. That's wrong, and dangerous: since
+Sten Seegel ruled out back-porting an order-fix into HAWKI's own `app.css`, a hosted extension shares its
+document with a host that still has **no** bare statement of its own — only individually opened `@layer name {}`
+blocks, ordered by whatever the host's bundler happens to encounter first. CSS Cascade Layers order is fixed on
+first mention, globally across every stylesheet applied to a document, not per-stylesheet. So if the *hosted*
+entry point's bare statement is the first thing on the page to mention, say, `components`, it permanently fixes
+that name's position relative to every other named layer for the rest of that page's lifetime — including layers
+the host's own (possibly lazily-loaded) component CSS hasn't opened yet. The host never asked for that ordering;
+it would just silently take effect, and — proven below — it cannot be undone by anything loaded afterward.
 
-```css
-@layer reset, tokens, base, components, utilities;
-```
+**Verified empirically**, not just reasoned about (a two-page cascade-layer test run in Chrome against a local
+static server, results read back via `getComputedStyle`):
 
-as the very first rule, before any `@import`. This pre-registers the five layers in the intended order once and
-for all; it no longer matters in what sequence the actual `@layer name { … }` rule blocks are encountered
-afterward, because a name's relative position is fixed on first mention and a bare statement is unambiguous.
-Card 11's lint rule should also check that this statement exists verbatim in both `styles/full.css` and
-`styles/tokens.css`.
+1. A stylesheet that only *adds rules to already-named layers* (no bare statement) behaves exactly like normal
+   same-layer cascade — it safely joins whatever position the host already established, no reordering risk.
+   (`box-a` rendered `orange` — our simulated hosted-mode rule beat the host's own `base`-layer rule purely by
+   normal source order within the *same* layer, nothing about the host's order changed.)
+2. A stylesheet that emits the bare statement **first** genuinely does fix order for the whole document: a
+   host style added *afterward*, naming a layer (`components`) our bare statement had already positioned below
+   `utilities`, could not win even though nothing in the host asked for that — the host's late `color: red` rule
+   never applied; the earlier-fixed `utilities` rule (`blue`) kept winning throughout.
+3. **Idempotency, demonstrated:** repeating the identical bare statement a second time anywhere later on the same
+   page changed nothing — confirms it's safe for our own two entry points to never accidentally conflict with
+   themselves.
+4. **The fix can't be self-inflicted-away either:** once two layer names have an established relative order, a
+   later bare statement asserting the *opposite* relative order for the same pair is simply ignored — the
+   original order holds. So there's no accidental escape hatch; getting this right the first time matters.
+
+**Contract, revised:**
+- **`styles/full.css` (standalone entry) only** opens with the bare statement:
+  ```css
+  @layer reset, tokens, base, components, utilities;
+  ```
+  Safe here specifically because in standalone mode the extension owns the *entire* document (per the DOM-isolation
+  decision above) — there is no pre-existing host content for the declaration to collide with, and point 2 above
+  is exactly the failure mode this configuration avoids.
+- **`styles/tokens.css` (hosted entry) never emits the bare statement.** It only opens `@layer tokens { … }` (and,
+  for component CSS, `@layer components { … }`) to add rules into whatever layer positions the host has already
+  established — proven safe in point 1. This leaves our components' relative specificity dependent on the host's
+  own (currently undocumented) bundler order, which is not a new risk: it's the same condition HAWKI already
+  operates under today, just not one this package should widen by dictating order for a document it doesn't own.
+- Namespacing our layer names (e.g. `hxds-components`) was considered and rejected: it would dodge the collision
+  entirely, but at the cost of losing correct interop with the host's own cascade (our components would no longer
+  sit at the *host's* intended tier relative to the host's own reset/base/utilities) and extra tooling complexity,
+  to solve a problem the "no bare statement in the hosted entry" rule already solves for free.
+
+Card 12's lint rule should check that `styles/full.css` contains the bare statement verbatim and that
+`styles/tokens.css` does **not**.
 
 ## Dark mode
 
@@ -232,15 +274,45 @@ be dead weight. This diverges intentionally from JLU-DS's `data-theme="dark"` co
 
 `scripts/check-token-usage.sh` — greps a target directory's `.svelte` files for (1) direct use of a primitive
 color token and (2) any literal color value (`oklch()`, `hsl()`, `rgb()`, hex — including inside `var()`
-fallbacks). Exit code is non-zero on any hit, so it's CI-runnable as-is. Card 11 turns this into an eslint rule.
+fallbacks). Exit code is non-zero on any hit, so it's CI-runnable as-is. Card 12 turns this into an eslint rule.
 
 Validated against upstream: run against `resources/js/components/ui/`, it correctly flags exactly the two real
 violations documented above (Avatar's primitive, Switch's dead-token literal-fallback) plus the excluded
 `HawkLogo.svelte`'s literal fallback (irrelevant since `logo/` is out of scope per KI-567). Run against this
 repo's current `src/` (empty — no components migrated yet), it passes cleanly, as expected before cards 14–17 land.
 
-## Open
+## Architecture choice: HAWKI-native CSS, not Tailwind
 
-- The layer-order fix above is a **new** requirement this package adds — it does not exist upstream today.
-  Flagging for Sten: should the same bare `@layer` statement be back-ported into HAWKI's own `app.css`, given it
-  is currently relying on undocumented, bundler-dependent ordering luck?
+Decided, with reasons written down rather than left implicit:
+
+- **Measured:** `tailwind` does not appear anywhere in upstream's `package.json`, and
+  `resources/css/tailwind-dummy.css` is a 0-byte file (checked directly, not inferred from the filename).
+  HAWKI's Svelte components are 100% hand-written scoped `<style>` blocks on cascade layers and custom-property
+  tokens — there is no Tailwind to port away from, and no utility-class convention to reconcile with.
+- **The hosted-mode decision above requires this anyway:** matching HAWKI's own token names and layer structure
+  is what lets a hosted extension inherit the host's theme instead of fighting it. Tailwind's generated utility
+  classes would land in their own layer/specificity scheme, disconnected from HAWKI's `@layer` structure and
+  `oklch()` token names — it would actively work against the "shared DOM, inherit the host's cascade" decision,
+  not just be redundant with it.
+- Decision: the package ships **HAWKI-native CSS** — scoped-style-equivalent output, cascade layers, `oklch()`
+  custom-property tokens, `cva`-generated class names — matching upstream's existing convention exactly rather
+  than introducing a second styling paradigm.
+
+## Resolved decisions (for the record)
+
+- **No back-port to HAWKI** (Sten Seegel). HAWKI keeps its current undeclared, import-order-dependent layer
+  arrangement; the bare-statement fix is this package's own, and — per the entry-point split above — is only
+  ever applied where it's safe to apply (the standalone entry, which owns its whole document).
+- **Consumption model** (Sten Seegel): standalone is primary, but both entry points ship, per §Consumption model.
+- **DOM isolation** (Niklas Bender): shared DOM, no iframe/Shadow DOM — this is *why* the hosted entry's safety
+  matters; there's no shadow boundary to protect the host from a misbehaving stylesheet.
+
+## Note on an open cross-reference
+
+The comment thread on this card states the two token-contract violations found here (`Avatar.svelte`,
+`Switch.svelte`) are both recorded on "card 15 (form controls)." `Avatar` is a primitive, not a form control —
+under the renumbering mapping recorded on KI-567 (batches 1–4 → cards 14–17, in that order), a primitives
+violation would be expected on card **14**, not 15. Not re-verified against the current backlog state in this
+pass (the board was being edited concurrently and a mid-review re-fetch risked the same stale-snapshot mistake
+flagged in the comment thread) — flagging for whoever owns cards 14/15 to confirm which one actually carries the
+`Avatar.svelte` fix before relying on it.
