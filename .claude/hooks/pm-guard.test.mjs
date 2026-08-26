@@ -146,8 +146,8 @@ describe('the guarded surface (oracle: CLAUDE.md’s list + the single-copy rule
     // the guard follows automatically. There is no second copy to update.
     expect(GUARDED_PATHS).toEqual([...CONTRACT_REVIEW_PATHS, ...HOOK_ONLY_PATHS])
     expect(CONTRACT_REVIEW_PATHS).toHaveLength(6)
-    expect(HOOK_ONLY_PATHS).toHaveLength(8)
-    expect(GUARDED_PATHS).toHaveLength(14)
+    expect(HOOK_ONLY_PATHS).toHaveLength(10)
+    expect(GUARDED_PATHS).toHaveLength(16)
   })
 
   it('keeps the two lists disjoint — the second is an extension, not a copy', () => {
@@ -168,19 +168,23 @@ describe('the guarded surface (oracle: CLAUDE.md’s list + the single-copy rule
   })
 
   it('matches prefix entries, exact entries and globs, and nothing adjacent', () => {
-    expect(guardedMatch('src/styles/tokens/colors.css')).toBe('src/styles/')
-    expect(guardedMatch('src/styles')).toBe('src/styles/')
+    expect(guardedMatch('src/lib/styles/tokens/colors.css')).toBe('src/lib/styles/')
+    expect(guardedMatch('src/lib/styles')).toBe('src/lib/styles/')
     expect(guardedMatch('docs/DESIGN_SYSTEM.md')).toBe('docs/DESIGN_SYSTEM.md')
-    expect(guardedMatch('src/index.ts')).toBe('src/index.ts')
+    expect(guardedMatch('src/lib/index.ts')).toBe('src/lib/index.ts')
     expect(guardedMatch('scripts/check-token-usage.sh')).toBe('scripts/check-token-usage.sh')
+    expect(guardedMatch('svelte.config.js')).toBe('svelte.config.js')
+    expect(guardedMatch('eslint.config.js')).toBe('eslint.config.js')
     expect(guardedMatch('.storybook/preview.ts')).toBe('.storybook/')
     expect(guardedMatch('.claude/settings.local.json')).toBe('.claude/settings*.json')
-    // Adjacent, and deliberately allowed:
+    // Adjacent, and deliberately allowed — a component lives beside the guarded paths:
     expect(guardedMatch('docs/DESIGN_SYSTEM.md.bak')).toBeNull()
-    expect(guardedMatch('src/styles.ts')).toBeNull()
-    expect(guardedMatch('src/index.test.ts')).toBeNull()
+    expect(guardedMatch('src/lib/Placeholder.svelte')).toBeNull()
+    expect(guardedMatch('src/lib/styles.ts')).toBeNull()
+    expect(guardedMatch('src/lib/index.test.ts')).toBeNull()
+    expect(guardedMatch('tests/Placeholder.test.ts')).toBeNull()
     expect(guardedMatch('scripts/check-story-coverage.sh')).toBeNull()
-    expect(guardedMatch('eslint.config.js')).toBeNull()
+    expect(guardedMatch('eslint.config.mjs')).toBeNull() // the entry is exact: only this spelling
     expect(guardedMatch('.claude/skills/project-manager/SKILL.md')).toBeNull()
     expect(guardedMatch('.claude/agents/code-reviewer.md')).toBeNull()
   })
@@ -211,7 +215,7 @@ describe('the guarded surface (oracle: CLAUDE.md’s list + the single-copy rule
     // realpath does not canonicalise case. Over-blocking on a case-sensitive filesystem is the
     // safe direction; under-blocking here would be a bypass on the developer's own machine.
     expect(guardedMatch('DOCS/DESIGN_SYSTEM.MD')).toBe('docs/DESIGN_SYSTEM.md')
-    expect(guardedMatch('SRC/Styles/tokens/Colors.css')).toBe('src/styles/')
+    expect(guardedMatch('SRC/Lib/Styles/tokens/Colors.css')).toBe('src/lib/styles/')
   })
 
   it('resolveLinks follows a dangling link instead of giving up on it', () => {
@@ -272,20 +276,22 @@ describe('every guarded entry is refused (oracle: the documented path list)', ()
 
 describe('ordinary files are not blocked', () => {
   const ALLOWED = [
-    'src/components/button/Button.svelte',
-    'src/components/button/Button.stories.svelte',
+    'src/lib/button/Button.svelte',
+    'src/lib/button/Button.stories.svelte',
+    'src/lib/Placeholder.svelte',
+    'tests/Placeholder.test.ts',
     'docs/notes.md',
     'CLAUDE.md',
     'README.md',
     'tsconfig.json',
+    '.prettierrc.json',
     '.claude/skills/project-manager/SKILL.md',
     '.claude/agents/milestone-worker.md',
     '.claude/README.md',
     // Adjacent to guarded entries, and correctly outside them:
-    'src/styles.ts',
-    'src/index.test.ts',
+    'src/lib/styles.ts',
+    'src/lib/index.test.ts',
     'scripts/check-story-coverage.sh',
-    'eslint.config.js',
   ]
   for (const relPath of ALLOWED) {
     it(`allows ${relPath}`, () => {
@@ -317,7 +323,7 @@ describe('subagents pass through', () => {
   })
 
   it('allows a subagent to write the shipped tokens and the guard itself', () => {
-    for (const p of ['src/styles/tokens/colors.css', '.claude/hooks/pm-guard.mjs']) {
+    for (const p of ['src/lib/styles/tokens/colors.css', '.claude/hooks/pm-guard.mjs']) {
       expect(runHook(write({ file_path: p }, { agent_id: 'agent_01ABC' })).status).toBe(0)
     }
   })
@@ -332,7 +338,7 @@ describe('cwd handling', () => {
     // The reproduced false block: the old hook looked for `$CWD/.claude`, so a cwd that had
     // drifted into a subdirectory could not find the repo root. `git rev-parse --show-toplevel`
     // fixes it in both directions — the guarded path is still caught…
-    const sub = path.join(repo, 'src')
+    const sub = path.join(repo, 'src/lib')
     mkdirSync(sub, { recursive: true })
     expectRefused(
       runHook({
@@ -340,14 +346,14 @@ describe('cwd handling', () => {
         tool_name: 'Write',
         tool_input: { file_path: 'styles/tokens/colors.css' },
       }),
-      'src/styles/',
+      'src/lib/styles/',
     )
     // …and ordinary work from the same subdirectory is not blocked.
     expect(
       runHook({
         cwd: sub,
         tool_name: 'Write',
-        tool_input: { file_path: 'components/button/Button.svelte' },
+        tool_input: { file_path: 'button/Button.svelte' },
       }).status,
     ).toBe(0)
   })
@@ -454,12 +460,12 @@ describe('symlink routes to a guarded file', () => {
   it('refuses a DANGLING link to a shipped stylesheet that does not exist yet', () => {
     // The write would create the guarded file. `fs.realpathSync` throws here, which is why the
     // guard resolves links itself.
-    const target = path.join(repo, 'src/styles/tokens/spacing.css')
+    const target = path.join(repo, 'src/lib/styles/tokens/spacing.css')
     const link = path.join(workspace, 'new-tokens.css')
     rmSync(link, { force: true })
     symlinkSync(target, link)
     expect(() => statSync(link)).toThrow()
-    expectRefused(runHook(write({ file_path: link })), 'src/styles/')
+    expectRefused(runHook(write({ file_path: link })), 'src/lib/styles/')
   })
 
   it('refuses a guarded NAME even when its directory is a symlink pointing out of the repo', () => {
@@ -469,14 +475,14 @@ describe('symlink routes to a guarded file', () => {
     const outsideDir = path.join(workspace, 'elsewhere-styles')
     mkdirSync(outsideDir, { recursive: true })
     const otherRepo = newRepo()
-    const linkParent = path.join(otherRepo, 'src')
+    const linkParent = path.join(otherRepo, 'src/lib')
     mkdirSync(linkParent, { recursive: true })
     symlinkSync(outsideDir, path.join(linkParent, 'styles'))
-    const viaName = path.join(otherRepo, 'src/styles/tokens.css')
+    const viaName = path.join(otherRepo, 'src/lib/styles/tokens.css')
     expect(resolveLinks(viaName)).toBe(path.join(outsideDir, 'tokens.css'))
     expectRefused(
       runHook({ cwd: otherRepo, tool_name: 'Write', tool_input: { file_path: viaName } }),
-      'src/styles/',
+      'src/lib/styles/',
     )
   })
 
@@ -545,7 +551,8 @@ describe('symlink routes to a guarded file', () => {
     try {
       caseInsensitive = readFileSync(variant, 'utf8') === 'canonical\n'
     } catch {
-      caseInsensitive = false
+      // Unreadable means the alias does not exist on this filesystem — the initialiser already
+      // says so, and re-assigning it here is what the repo's eslint gate flags.
     }
     // The oracle is the filesystem's own answer. On a case-sensitive filesystem the alias does
     // not exist, so the aliasing claim is not made there — but the refusal is asserted either
@@ -567,19 +574,19 @@ describe('the trusted root is the guard’s own location (round 2 — the review
   // it is reached"), plus the filesystem itself wherever an alias is claimed to be real, plus the
   // exact exit code 2 from Claude Code's hook contract. Never the guard's own output.
   //
-  // The representative guarded file is `docs/DESIGN_SYSTEM.md` because it is the one guarded path
-  // that EXISTS in this repo today — the shipped styles, the export barrel and `eslint-plugin/`
-  // arrive with cards 06/08/12. Several cases below need a real file to write through.
+  // The representative guarded file is `docs/DESIGN_SYSTEM.md` because it exists in this repo
+  // today and several cases below need a real file to write through. `src/lib/styles/` and
+  // `eslint-plugin/` are still empty — cards 08 and 12 fill them.
   const CONTRACT = 'docs/DESIGN_SYSTEM.md'
 
   it('SELF_ROOT is this checkout, derived from the guard’s own path and nothing else', () => {
     expect(SELF_ROOT).toBe(realpathSync(path.resolve(path.dirname(GUARD_SRC), '..', '..')))
     // Oracle: the repository layout. These files exist because the project does, not because
-    // this card created them. `package.json` is deliberately NOT among them: card 06 has not
-    // landed it yet, and asserting a file the repo does not have would be a red suite, not a
-    // guard defect.
+    // this card created them — `package.json` among them since card 06 (KI-570) landed the
+    // Svelte 5 skeleton.
     for (const marker of [
       'CLAUDE.md',
+      'package.json',
       '.claude/hooks/pm-guard.mjs',
       'scripts/check-token-usage.sh',
       CONTRACT,
@@ -638,7 +645,7 @@ describe('the trusted root is the guard’s own location (round 2 — the review
     try {
       sameFile = readFileSync(shouted, 'utf8') === 'canonical\n'
     } catch {
-      sameFile = false
+      // Same as above: not readable means not an alias, which the initialiser already covers.
     }
     if (sameFile) {
       writeFileSync(shouted, 'REACHED VIA CASE VARIANT\n')

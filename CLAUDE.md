@@ -11,9 +11,9 @@ authors. Source of the extraction: `hawk-digital-environments/HAWKI`, branch
 `feature/svelte-frontend`, path `resources/js/components/ui/` — a behavioural reference to port from,
 not a tree to copy.
 
-The repo is still a skeleton: `docs/DESIGN_SYSTEM.md` (scope triage + styling contract) and
-`scripts/check-token-usage.sh` (token guardrail). **There is no `package.json`, no Svelte, no Vite and
-no Storybook yet** — cards 06 (repo skeleton) and 07 (Storybook) land them and block everything else.
+Card 06 (KI-570) landed the skeleton: `package.json`, `vite.config.ts`, `svelte.config.js`,
+`tsconfig.json`, `eslint.config.js`, a `src/lib/` library root published by `svelte-package`, and a
+vitest suite. **Storybook is not set up yet** — `npm run storybook` deliberately exits 1 until card 07.
 Do not report a gate as passing that does not exist.
 
 Read `docs/DESIGN_SYSTEM.md` before touching tokens, cascade layers, dark mode or scope. Work is
@@ -34,10 +34,11 @@ kanban board, and spawns subagents for the carded work. The pipeline and its rul
   probe → the PM does it itself, directly. There is no lane to enter, no scope test, no size
   threshold and no sentinel; do not reintroduce a "too small to review" path.
 - **The guarded paths are never the PM's, however the request arrived.** In the main session
-  `.claude/hooks/pm-no-direct-edit.sh` always refuses the **published contract** (`src/styles/`,
-  `styles/`, `src/index.ts`, `docs/DESIGN_SYSTEM.md`, `scripts/check-token-usage.sh`,
-  `eslint-plugin/`) plus `package.json`, `vite.config.ts`, `.storybook/`, `.github/workflows/`,
-  `.npmrc`, and the harness's own `.claude/settings*.json`, `.claude/hooks/` and `.claude/tools/`.
+  `.claude/hooks/pm-no-direct-edit.sh` always refuses the **published contract** (`src/lib/styles/`,
+  `styles/`, `src/lib/index.ts`, `docs/DESIGN_SYSTEM.md`, `scripts/check-token-usage.sh`,
+  `eslint-plugin/`) plus `package.json`, `vite.config.ts`, `svelte.config.js`, `eslint.config.js`,
+  `.storybook/`, `.github/workflows/`, `.npmrc`, and the harness's own `.claude/settings*.json`,
+  `.claude/hooks/` and `.claude/tools/`.
   Those change through the pipeline only — card, worker, independent reviewer. Nothing lifts the
   guard; subagents pass through it because their hook input carries `agent_id`. The contract half has
   one copy (`CONTRACT_REVIEW_PATHS` in `.claude/tools/card-scope.mjs`, which the hook imports) and both
@@ -58,35 +59,31 @@ kanban board, and spawns subagents for the carded work. The pipeline and its rul
 
 ## Commands (exact invocations — worker and reviewer run these every request)
 
-From the repo root. **The list is short because the toolchain is not built yet**; a command below
-that has no `package.json` behind it does not exist yet, and "not run" is the honest report, never
-"passed". Cards 06/07/11/12/13 land the rest, and whoever lands them updates this section — a wrong
-command here costs a wasted implement-review round.
+From the repo root. These are real, and were run green on the harness branch; a wrong command here
+costs a wasted implement-review round, so whoever changes a script updates this section.
 
-Available today:
-
-- Token guardrail: `bash scripts/check-token-usage.sh src` (exit non-zero on a primitive token or a
-  literal colour; `src` may be any directory to scan)
-- Card-scope tests (harness): `npx vitest run .claude/tools/card-scope.test.mjs`
-- PM guard tests (harness): `npx vitest run .claude/hooks/pm-guard.test.mjs` — the only mechanical
-  check on the guarded surface, so a red run here is not a harness detail
+- Lint + format check: `npm run lint` (`eslint . && prettier --check .`)
+- Type/component check: `npm run check` (`svelte-check`)
+- Tests: `npm test` (`vitest run`) — **this includes the harness suites**: vitest's default include
+  picks up `.claude/tools/card-scope.test.mjs` and `.claude/hooks/pm-guard.test.mjs`, so the guarded
+  surface is gated by the repo's own test command with no extra wiring. 133 tests today.
+- One suite: `npx vitest run .claude/hooks/pm-guard.test.mjs`
+- Library build: `npm run build` (`svelte-package`, `src/lib` → `dist`)
+- Token guardrail: `bash scripts/check-token-usage.sh src/lib` (non-zero on a primitive token or a
+  literal colour; any directory may be scanned)
 - Collect the current card's file set:
   `node .claude/tools/card-scope.mjs --base <claim-base sha>` (fallback: `--base main`)
 - Produce the diff text a reviewer reads:
   `node .claude/tools/card-scope.mjs --base <claim-base sha> --format diff`
 - Print the mandatory-contract-review trigger paths: `node .claude/tools/card-scope.mjs --guarded-paths`
 
-Expected once card 06/07/11 land (do not invoke before they exist):
+Not available yet: `npm run storybook` / `npm run build-storybook` exit 1 with a pointer to card 07.
 
-- Lint: `npm run lint`
-- Typecheck / library build: `npm run build`
-- Tests, including the story suite: `npm test`
-- Story tests only: `npx vitest --project=storybook`
-- Storybook: `npm run storybook` / `npm run build-storybook`
+Pre-handoff check (run all three):
 
-> The harness suites currently run through a vitest that this repo does not yet install. Until card 06
-> lands a `package.json`, run them with an available vitest binary and **say which one you used** —
-> a suite run against an unpinned tool is evidence with a caveat, not evidence without one.
+```bash
+npm run lint && npm run check && npm test
+```
 
 ## Architecture invariants (breaking one is a review FAIL)
 
@@ -96,9 +93,12 @@ Each of these is written down in `docs/DESIGN_SYSTEM.md` with the reasoning and 
   or a literal colour — including inside a `var()` fallback. `scripts/check-token-usage.sh` is the
   mechanical check. Two upstream violations are documented (Avatar's primitive, Switch's dead
   `--shadow-xs` with a live `rgb()` fallback); neither may be ported in.
-- **Every shipped CSS entry point opens with** `@layer reset, tokens, base, components, utilities;`
-  as its very first rule, before any `@import`. Layer order is set by first encounter, not by
-  comments — upstream currently relies on bundler-dependent ordering luck, and this package must not.
+- **The bare `@layer` statement belongs to exactly one entry point.** `styles/full.css` (the
+  standalone entry) opens with `@layer reset, tokens, base, components, utilities;` as its very first
+  rule, before any `@import`. `styles/tokens.css` (the hosted entry) **never** emits it — it would
+  reorder the layers of a host document that already declared its own. Layer order is set by first
+  encounter, not by comments; upstream relies on bundler-dependent ordering luck and this package
+  must not. Card 12's lint rule checks both halves. (`docs/DESIGN_SYSTEM.md`, "Cascade layer order".)
 - **Dark mode is `html.darkMode`.** No `data-theme`, no `prefers-color-scheme` in shipped CSS, no
   ported `lightMode` bookkeeping. The divergence from JLU-DS is deliberate; do not harmonise it.
 - **Storybook is the single source of truth** (card 07). Props, variants and states are documented in

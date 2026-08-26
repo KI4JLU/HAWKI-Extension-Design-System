@@ -43,9 +43,9 @@ a gate. The second pass therefore runs inside this harness, with the tools every
    way this change breaks a consumer who upgrades without reading the changelog.** Point it at:
    - **Contract drift** — a primitive token or literal colour where a semantic alias is required
      (including inside a `var()` fallback); a token, custom property or export removed or renamed
-     without a decision; a shipped entry point that does not open with
-     `@layer reset, tokens, base, components, utilities;`; dark mode expressed as anything other than
-     `html.darkMode`.
+     without a decision; `styles/full.css` not opening with
+     `@layer reset, tokens, base, components, utilities;`, or `styles/tokens.css` emitting that
+     statement at all; dark mode expressed as anything other than `html.darkMode`.
    - **Cascade and specificity failures** a test cannot see: layer order that only works because of
      import order, `@property` wrapped in a layer, a rule whose weight depends on the consumer's own
      stylesheet.

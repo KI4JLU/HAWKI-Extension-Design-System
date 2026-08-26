@@ -33,17 +33,19 @@ orientation from the researcher agents — use it as your starting map.
      text, icon-only, empty. **If it isn't in a story, it isn't supported.**
    - **Semantic tokens only.** Never a primitive (`--color-accent-500`) and never a literal colour —
      including inside a `var()` fallback. `bash scripts/check-token-usage.sh src` is the mechanical
-     check and it must pass. Two upstream violations are already documented in
+     check and it must pass (`bash scripts/check-token-usage.sh src/lib`). Two upstream violations are already documented in
      `docs/DESIGN_SYSTEM.md` (Avatar's primitive, Switch's dead `--shadow-xs`); do not port them in.
    - **Dark mode is `html.darkMode`.** Not `data-theme`, not `prefers-color-scheme`. The divergence
      from JLU-DS is deliberate and documented; do not harmonise it.
-   - **Every shipped CSS entry point opens with** `@layer reset, tokens, base, components,
-     utilities;` as its very first rule, before any `@import`.
+   - **The bare `@layer` statement belongs to `styles/full.css` only** — as its very first rule,
+     before any `@import`. `styles/tokens.css` must **not** emit it: it would reorder the layers of a
+     host document that already declared its own.
    - **Upstream HAWKI is a behavioural reference, not a source to copy blindly.** When porting a
      component from `hawk-digital-environments/HAWKI` (`feature/svelte-frontend`,
      `resources/js/components/ui/`), read the original, then decouple what the card requires: the
-     chat-plugin import in `CitationReference.svelte`, `useTranslator` as a hard dependency, and any
-     store/API coupling. HAWKI is GPLv3 and the licence question is deferred (card KI-589) — do not
+     chat-plugin import in `CitationReference.svelte` (must become a prop/callback), `useTranslator`
+     (must consume the i18n contract from card 20, not a hard dependency), and any store/API
+     coupling. HAWKI is GPLv3 and the licence question is deferred (card KI-589) — do not
      paste large verbatim blocks into cards or docs; reference `path:line`.
    - **Tests derive from stories** (card 11). Interaction behaviour lives in `play` functions next to
      the story that documents it. A separate hand-written fixture is a second source of truth — keep
@@ -58,10 +60,10 @@ orientation from the researcher agents — use it as your starting map.
      stated fact.
    - Use project skills where they fit (`storybook-vitest-addon` for the story-test harness).
    - Respect every **non-goal** in CLAUDE.md.
-4. **Verify before handing off.** Run the pre-handoff check from CLAUDE.md's **Commands** — whichever
-   gates exist at the time you run (the repo is being bootstrapped by cards 06/07/11, so the list
-   grows; a gate that does not exist yet is reported as not existing, never as passing). Paste the
-   real output into your report — not a summary of it.
+4. **Verify before handing off.** Run the pre-handoff check from CLAUDE.md's **Commands**:
+   `npm run lint && npm run check && npm test`. Storybook is not wired yet (card 07), so a
+   story-related claim you cannot run is reported as not run, never as passing. Paste the real output
+   into your report — not a summary of it.
 5. **Track progress on the card.** Interim decisions and the "why" go in the card **description**
    (`update_card`). If `add_card_comment` errors on this kanban server, use the description.
 6. **Hand off for review.** Update the description with a DONE summary (what you did, the artifact,
@@ -100,7 +102,7 @@ with `git`/Bash when the card needs the behavioural reference.
 ## Return to the caller
 
 What you produced (file paths), how you verified it (real command output), any open TODOs or marked
-uncertainties, whether the change touches the published contract (the shipped styles/tokens, the
-export barrel, `docs/DESIGN_SYSTEM.md`, or the guardrails — so the caller knows to run
-`contract-review`), and confirmation the card is now in `Code Review` — or still in `In Progress`
+uncertainties, whether the change touches the published contract (the shipped styles/tokens under
+`src/lib/styles/`, the export barrel `src/lib/index.ts`, `docs/DESIGN_SYSTEM.md`, or the guardrails —
+so the caller knows to run `contract-review`), and confirmation the card is now in `Code Review` — or still in `In Progress`
 with a stated blocker.

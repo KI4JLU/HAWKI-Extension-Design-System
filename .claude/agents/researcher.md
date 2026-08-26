@@ -30,9 +30,11 @@ contract bound what is relevant.
      and whether one is missing (the Avatar case in `docs/DESIGN_SYSTEM.md` is the worked example:
      no existing alias fit, so a new token was needed rather than a substitution).
    - **Stories:** the nearest existing `*.stories.svelte`, its format (Svelte CSF vs CSF3 — card 07
-     leaves this open), and what variants/states the sibling component documents.
-   - **Tests:** the nearest existing test and its oracle; whether the story suite runs in browser
-     mode or jsdom (card 11's open decision).
+     leaves this open), and what variants/states the sibling component documents. Storybook is not
+     set up yet, so on most cards today the honest answer is "no precedent exists".
+   - **Tests:** the nearest existing test and its oracle (`tests/` holds the current ones; the
+     project default today is jsdom via `vite.config.ts`), and whether the story suite should run in
+     browser mode instead — card 11's open decision, which this default does not settle.
    - **Scope:** whether the component is `In`, `Out` or `Needs confirmation` per the triage table.
      A card that touches an `Out` or undecided directory is a question for the developer, not work.
 3. Note constraints: non-goals the card brushes against, whether the change would break a published

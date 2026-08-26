@@ -119,9 +119,13 @@ export const SELF_ROOT = realpathSync(SELF_ROOT_LEXICAL)
  *                            config — what consumers install and how the package resolves.
  *                            A dependency is added by a worker on a card, not by the PM in
  *                            passing.
- *   vite.config.ts           the library build (what actually gets emitted and what is
- *                            externalised) and the `test.projects` wiring the story suite runs
- *                            through. Card 06 and card 11 own it.
+ *   vite.config.ts           the Vite/Vitest config: the plugins the library builds through and
+ *                            the test environment every suite inherits. Card 11 extends it for the
+ *                            story suite.
+ *   svelte.config.js         the Svelte compiler and `svelte-package` behaviour — what actually
+ *                            gets emitted into `dist/` and therefore what consumers receive.
+ *   eslint.config.js         the lint gate itself. Narrowing it narrows what every later review can
+ *                            see, which is the `.claude/tools/` argument applied to a gate.
  *   .storybook/              the delivery surface. `preview` applies the styling contract and
  *                            owns the theme toolbar, so an edit here silently changes what every
  *                            story test and every Chromatic snapshot is rendered against.
@@ -148,7 +152,7 @@ export const SELF_ROOT = realpathSync(SELF_ROOT_LEXICAL)
  * `settings.json` / `settings.local.json` are the only two names Claude Code reads there — a
  * `.claude/my-settings.json` is not part of the guarded surface because nothing loads it.
  *
- * `package.json` and `vite.config.ts` match exactly, so a `packages/x/package.json` in a future
+ * The four config entries match exactly, so a `packages/x/package.json` in a future
  * workspace layout would NOT be guarded. That is stated rather than fixed: this repo is a single
  * package today (card 06), and a wrong prefix pattern now would guard paths nobody can predict.
  * // TODO: revisit if the repo ever becomes a monorepo — not yet applicable.
@@ -159,6 +163,8 @@ export const SELF_ROOT = realpathSync(SELF_ROOT_LEXICAL)
 export const HOOK_ONLY_PATHS = [
   'package.json',
   'vite.config.ts',
+  'svelte.config.js',
+  'eslint.config.js',
   '.storybook/',
   '.github/workflows/',
   '.npmrc',

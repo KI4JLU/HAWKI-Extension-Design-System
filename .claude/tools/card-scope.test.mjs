@@ -75,9 +75,9 @@ describe('the trigger-path list (oracle: CLAUDE.md + docs/DESIGN_SYSTEM.md)', ()
     // and the two guardrails that enforce the contract (narrowing one narrows every later
     // review).
     expect(CONTRACT_REVIEW_PATHS).toEqual([
-      'src/styles/',
+      'src/lib/styles/',
       'styles/',
-      'src/index.ts',
+      'src/lib/index.ts',
       'docs/DESIGN_SYSTEM.md',
       'scripts/check-token-usage.sh',
       'eslint-plugin/',
@@ -85,15 +85,15 @@ describe('the trigger-path list (oracle: CLAUDE.md + docs/DESIGN_SYSTEM.md)', ()
   })
 
   it('contractReviewMatch distinguishes prefix entries from exact entries', () => {
-    expect(contractReviewMatch('src/styles/tokens/deep/colors.css')).toBe('src/styles/')
-    expect(contractReviewMatch('src/styles')).toBe('src/styles/')
+    expect(contractReviewMatch('src/lib/styles/tokens/deep/colors.css')).toBe('src/lib/styles/')
+    expect(contractReviewMatch('src/lib/styles')).toBe('src/lib/styles/')
     expect(contractReviewMatch('docs/DESIGN_SYSTEM.md')).toBe('docs/DESIGN_SYSTEM.md')
     // Not a prefix match: the exact entry must not swallow neighbours.
     expect(contractReviewMatch('docs/DESIGN_SYSTEM.md.bak')).toBeNull()
-    expect(contractReviewMatch('src/styles.ts')).toBeNull()
+    expect(contractReviewMatch('src/lib/styles.ts')).toBeNull()
     // A component is NOT on the list: it is reviewed like any other card, and only the
     // contract surface pulls in a second pass.
-    expect(contractReviewMatch('src/components/button/Button.svelte')).toBeNull()
+    expect(contractReviewMatch('src/lib/Placeholder.svelte')).toBeNull()
   })
 
   it('--guarded-paths prints the list, with no repository and no git state', () => {
@@ -107,7 +107,7 @@ describe('the trigger-path list (oracle: CLAUDE.md + docs/DESIGN_SYSTEM.md)', ()
     expect(out.status).toBe(0)
     const printed = out.stdout.trim().split('\n')
     expect(printed).toHaveLength(6)
-    expect(printed).toContain('src/styles/')
+    expect(printed).toContain('src/lib/styles/')
     expect(printed).toContain('scripts/check-token-usage.sh')
   })
 })
@@ -284,15 +284,15 @@ describe('real git: mandatory scenarios', () => {
     // changes, one tracked and one untracked — and `git diff` alone would show only the first.
     const repo = repoWith({ 'docs/note.md': 'a\n' })
     write(repo, 'docs/note.md', 'a\nb\n')
-    write(repo, 'src/components/button/Button.svelte', '<button></button>\n')
+    write(repo, 'src/lib/Placeholder.svelte', '<p>placeholder</p>\n')
 
     const out = runTool(repo)
     expect(out.status).toBe(0)
     expect(pathsOf(out.json)).toEqual([
       'docs/note.md',
-      'src/components/button/Button.svelte',
+      'src/lib/Placeholder.svelte',
     ])
-    const loose = out.json.files.find((f) => f.path.endsWith('Button.svelte'))
+    const loose = out.json.files.find((f) => f.path.endsWith('Placeholder.svelte'))
     expect(loose.sources).toEqual(['untracked'])
   })
 
@@ -300,40 +300,40 @@ describe('real git: mandatory scenarios', () => {
     // Oracle: CLAUDE.md declares `contract-review` mandatory for the published contract, and the
     // test modified a path under it. Not a review depth — the review is full either way; this is the flag
     // that says a second reader must also read it.
-    const repo = repoWith({ 'src/styles/tokens.css': ':root {}\n' })
-    write(repo, 'src/styles/tokens.css', ':root { --color-text: oklch(0 0 0); }\n')
+    const repo = repoWith({ 'src/lib/styles/tokens.css': ':root {}\n' })
+    write(repo, 'src/lib/styles/tokens.css', ':root { --color-text: oklch(0 0 0); }\n')
 
     const out = runTool(repo)
     expect(out.json.contractReviewRequired).toBe(true)
-    expect(out.json.contractReviewPaths).toEqual(['src/styles/tokens.css'])
+    expect(out.json.contractReviewPaths).toEqual(['src/lib/styles/tokens.css'])
     // `contractReviewPaths` names the FILE; `contractReview` names the matched ENTRY, which for a
     // prefix entry is the directory. Asserted separately so a change that collapsed the two
     // is visible.
-    expect(out.json.files[0].contractReview).toBe('src/styles/')
+    expect(out.json.files[0].contractReview).toBe('src/lib/styles/')
   })
 
   it('a real staged rename contributes BOTH paths, and the old one triggers contract-review', () => {
     // `git mv` of a shipped token file to a .md name. Both paths of a rename belong to the
-    // card, so the OLD path (src/styles/tokens/colors.css) still matches the trigger
+    // card, so the OLD path (src/lib/styles/tokens/colors.css) still matches the trigger
     // list and the second pass is mandatory. A tool that only read the new path would see
     // nothing but a Markdown file. Oracle: the test performed the rename, so it knows both
     // paths.
     const repo = repoWith({
-      'src/styles/tokens/colors.css': ':root { --color-accent-500: oklch(0.6 0.1 250); }\n',
+      'src/lib/styles/tokens/colors.css': ':root { --color-accent-500: oklch(0.6 0.1 250); }\n',
       'docs/keep.md': 'a\n', // so docs/ exists — `git mv` will not create the directory
     })
-    git(repo, ['mv', 'src/styles/tokens/colors.css', 'docs/removed.md'])
+    git(repo, ['mv', 'src/lib/styles/tokens/colors.css', 'docs/removed.md'])
 
     const out = runTool(repo)
     expect(out.status).toBe(0)
     expect(pathsOf(out.json)).toEqual([
       'docs/removed.md',
-      'src/styles/tokens/colors.css',
+      'src/lib/styles/tokens/colors.css',
     ])
     expect(out.json.contractReviewRequired).toBe(true)
-    expect(out.json.contractReviewPaths).toEqual(['src/styles/tokens/colors.css'])
+    expect(out.json.contractReviewPaths).toEqual(['src/lib/styles/tokens/colors.css'])
 
-    const oldEntry = out.json.files.find((f) => f.path === 'src/styles/tokens/colors.css')
+    const oldEntry = out.json.files.find((f) => f.path === 'src/lib/styles/tokens/colors.css')
     expect(oldEntry.renameSource).toBe(true)
     expect(oldEntry.existsInWorktree).toBe(false)
     expect(oldEntry.statuses[0]).toMatch(/^R/)
@@ -456,7 +456,7 @@ describe('real git: work partly committed on the branch', () => {
   function repoWithCommittedWork() {
     const repo = repoWith({ 'keep.md': 'a\n' })
     git(repo, ['checkout', '-q', '-b', 'feat'])
-    write(repo, 'src/components/button/Button.svelte', '<button></button>\n')
+    write(repo, 'src/lib/Placeholder.svelte', '<p>placeholder</p>\n')
     git(repo, ['add', '-A'])
     git(repo, ['-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'first half of the card'])
     write(repo, 'docs/note.md', 'second half, uncommitted\n')
@@ -473,11 +473,11 @@ describe('real git: work partly committed on the branch', () => {
     expect(out.status).toBe(0)
     expect(pathsOf(out.json)).toEqual([
       'docs/note.md',
-      'src/components/button/Button.svelte',
+      'src/lib/Placeholder.svelte',
     ])
     expect(out.json.committedWorkIncluded).toBe(true)
     const committed = out.json.files.find(
-      (f) => f.path === 'src/components/button/Button.svelte',
+      (f) => f.path === 'src/lib/Placeholder.svelte',
     )
     expect(committed.sources).toContain('committed')
   })
@@ -524,25 +524,25 @@ describe('real git: work partly committed on the branch', () => {
 
   it('a rename inside a branch commit contributes both paths', () => {
     // Same two-path rule as the working-tree rename, but reached through <base>...HEAD.
-    // The old path src/styles/tokens/colors.css is on the trigger list, so the second
+    // The old path src/lib/styles/tokens/colors.css is on the trigger list, so the second
     // model is mandatory even though the surviving name is plain Markdown.
     const repo = repoWith({
       'keep.md': 'a\n',
       'docs/keep.md': 'a\n',
-      'src/styles/tokens/colors.css': ':root { --color-accent-500: oklch(0.6 0.1 250); }\n',
+      'src/lib/styles/tokens/colors.css': ':root { --color-accent-500: oklch(0.6 0.1 250); }\n',
     })
     git(repo, ['checkout', '-q', '-b', 'feat'])
-    git(repo, ['mv', 'src/styles/tokens/colors.css', 'docs/moved.md'])
+    git(repo, ['mv', 'src/lib/styles/tokens/colors.css', 'docs/moved.md'])
     git(repo, ['-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'move it'])
 
     const out = runTool(repo, ['--base', 'main'])
     expect(out.status).toBe(0)
     expect(pathsOf(out.json)).toEqual([
       'docs/moved.md',
-      'src/styles/tokens/colors.css',
+      'src/lib/styles/tokens/colors.css',
     ])
     expect(out.json.contractReviewRequired).toBe(true)
-    expect(out.json.contractReviewPaths).toEqual(['src/styles/tokens/colors.css'])
+    expect(out.json.contractReviewPaths).toEqual(['src/lib/styles/tokens/colors.css'])
   })
 
   it('main...HEAD alone would be the wrong set too — the union is what is correct', () => {
@@ -551,13 +551,13 @@ describe('real git: work partly committed on the branch', () => {
     // compared against what the test created in each half.
     const repo = repoWithCommittedWork()
     const committedOnly = git(repo, ['diff', '--name-only', 'main...HEAD']).trim().split('\n')
-    expect(committedOnly).toEqual(['src/components/button/Button.svelte'])
+    expect(committedOnly).toEqual(['src/lib/Placeholder.svelte'])
     expect(git(repo, ['diff', '--name-only', 'HEAD']).trim()).toBe('')
 
     const out = runTool(repo, ['--base', 'main'])
     expect(pathsOf(out.json)).toEqual([
       'docs/note.md',
-      'src/components/button/Button.svelte',
+      'src/lib/Placeholder.svelte',
     ])
   })
 })
@@ -682,22 +682,22 @@ describe('real git: the index is not the working tree', () => {
     // (b) `git diff --cached HEAD --name-only` names the file, and that name is what the
     // tool's file set must contain — an empty set here would send the reviewer into
     // verification-only mode on a tree that has committable content in it.
-    const repo = repoWith({ 'src/components/button/Button.svelte': '<button></button>\n' })
-    write(repo, 'src/components/button/Button.svelte', '<button>staged evil</button>\n')
-    git(repo, ['add', 'src/components/button/Button.svelte'])
-    write(repo, 'src/components/button/Button.svelte', '<button></button>\n')
+    const repo = repoWith({ 'src/lib/Placeholder.svelte': '<p>placeholder</p>\n' })
+    write(repo, 'src/lib/Placeholder.svelte', '<p>staged evil</p>\n')
+    git(repo, ['add', 'src/lib/Placeholder.svelte'])
+    write(repo, 'src/lib/Placeholder.svelte', '<p>placeholder</p>\n')
 
     // The setup really is the hole: the worktree matches HEAD again.
     expect(git(repo, ['diff', 'HEAD', '--name-only'])).toBe('')
     // ... and git agrees content is nonetheless staged for commit.
     expect(git(repo, ['diff', '--cached', 'HEAD', '--name-only']).trim()).toBe(
-      'src/components/button/Button.svelte',
+      'src/lib/Placeholder.svelte',
     )
 
     const out = runTool(repo)
     expect(out.status).toBe(0)
     expect(out.json.fileCount).toBe(1)
-    expect(pathsOf(out.json)).toEqual(['src/components/button/Button.svelte'])
+    expect(pathsOf(out.json)).toEqual(['src/lib/Placeholder.svelte'])
     // The path must be attributed to the index source, otherwise a future refactor could
     // pass this test for the wrong reason (e.g. by scanning the whole tree).
     expect(out.json.files[0].sources).toContain('index')
@@ -811,9 +811,9 @@ describe('real git: the index is not the working tree', () => {
     //
     // Oracle: the rule, plus git confirming that both diffs really are blind here — which is
     // what makes exit 2 the only honest answer rather than a conservative choice.
-    const repo = repoWith({ 'src/components/button/Button.svelte': '<button></button>\n' })
-    git(repo, ['update-index', '--assume-unchanged', 'src/components/button/Button.svelte'])
-    write(repo, 'src/components/button/Button.svelte', '<button>invisible</button>\n')
+    const repo = repoWith({ 'src/lib/Placeholder.svelte': '<p>placeholder</p>\n' })
+    git(repo, ['update-index', '--assume-unchanged', 'src/lib/Placeholder.svelte'])
+    write(repo, 'src/lib/Placeholder.svelte', '<p>invisible</p>\n')
 
     expect(git(repo, ['diff', 'HEAD', '--name-only'])).toBe('')
     expect(git(repo, ['diff', '--cached', 'HEAD', '--name-only'])).toBe('')

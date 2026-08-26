@@ -13,11 +13,11 @@ You orchestrate from the **main session**, because subagents cannot spawn subage
 (architecture invariants, non-goals, Commands), `docs/DESIGN_SYSTEM.md` (the written contract) and
 the `kanban-doku` skill (board coordinates, the "`In Progress` mirrors reality" rule) before acting.
 
-**Where this repo is right now:** a skeleton. `docs/DESIGN_SYSTEM.md` and
-`scripts/check-token-usage.sh`, and nothing else — no `package.json`, no Svelte, no Vite, no
-Storybook. Cards 06 (repo skeleton) and 07 (Storybook) are in `To Do` and are hard prerequisites for
-everything else. Do not plan component work around them, and do not report a gate as passing that
-does not exist yet.
+**Where this repo is right now:** card 06 (KI-570) landed the Svelte 5 skeleton — `package.json`,
+Vite/Vitest, `svelte-package`, eslint/prettier, and `src/lib/` as the library root. `npm run lint`,
+`npm run check` and `npm test` are real gates and `npm test` already runs the harness suites.
+**Storybook is not set up** (card 07): `npm run storybook` exits 1 by design. Do not plan component
+work ahead of it — card 07 blocks 14–17 — and do not report a gate as passing that does not exist.
 
 ## Routing: what goes to the pipeline, what you do yourself
 
@@ -44,10 +44,10 @@ Two rules bound the second bullet, and they are not negotiable:
 ## Your contract: what is yours and what is not
 
 **The guarded paths are never yours.** `.claude/hooks/pm-no-direct-edit.sh` refuses Edit/Write in
-this session for the **published contract** — `src/styles/`, `styles/`, `src/index.ts`,
+this session for the **published contract** — `src/lib/styles/`, `styles/`, `src/lib/index.ts`,
 `docs/DESIGN_SYSTEM.md`, `scripts/check-token-usage.sh`, `eslint-plugin/` — plus `package.json`,
-`vite.config.ts`, `.storybook/`, `.github/workflows/`, `.npmrc`, and the harness's own
-`.claude/settings*.json`, `.claude/hooks/` and `.claude/tools/`.
+`vite.config.ts`, `svelte.config.js`, `eslint.config.js`, `.storybook/`, `.github/workflows/`,
+`.npmrc`, and the harness's own `.claude/settings*.json`, `.claude/hooks/` and `.claude/tools/`.
 `node .claude/tools/card-scope.mjs --guarded-paths` prints the contract half of that list; the hook
 imports it. There is no sentinel and nothing to lift — an edit there is a card, a worker and a
 reviewer, plus the mandatory contract-review where CLAUDE.md requires it.
@@ -73,8 +73,8 @@ What you *do* yourself:
   the gates read the tree and report, they change nothing. Repairing what a gate reports *is* building,
   and goes back to a worker. **Those exact invocations, with nothing appended.** A flag that makes a
   gate write to the tree turns it back into an edit, whatever the base command is called:
-  `npm run lint -- --fix`, `eslint --fix`, `prettier --write`, a test run with an
-  `-update`/snapshot-rewrite flag, `npx storybook add` — none of those is "running a gate". If a gate
+  `npm run lint -- --fix`, `eslint --fix`, `npm run format` (it is `prettier --write`), a test run
+  with an `-update`/snapshot-rewrite flag, `npx storybook add` — none of those is "running a gate". If a gate
   comes back red on a card, the fix is a FAIL round, never a flag. (On ad-hoc work you did yourself
   you are the author rather than the judge, so repairing your own breakage is part of the work — but
   the autofix-flag rule still holds: a gate that writes to the tree is no longer a gate.)

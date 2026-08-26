@@ -58,26 +58,27 @@ and the PM scopes, sequences and reports.
 | `skills/contract-review/SKILL.md` | The mandatory second pass over the published contract: a **fresh** `code-reviewer` (never the one that already passed the card) with a narrower, hostile brief — find the way this breaks a consumer who upgrades without reading the changelog. Advisory input; the PM passes explicit paths and a diff it generated itself, and owns what it does with the findings. **Deliberately depends on no external MCP** — see the note below. |
 | `skills/storybook-vitest-addon/SKILL.md` | Installing and troubleshooting the story-as-test harness (cards 07/11), and the decisions those cards forbid copying from JLU-DS. |
 | `tools/card-scope.mjs` | **Which files belong to this card, and their diff.** Single source of truth for the `CONTRACT_REVIEW_PATHS` trigger list (`--guarded-paths`), so no prompt file keeps a copy. Handles what prose got wrong twice upstream: NUL-separated git output only, both paths of a rename, quoted/spaced paths, deletions, untracked files, work already committed on the branch, and an explicit error instead of a quietly shorter file set. It also closed three reproduced ways the file set came back too small: the INDEX diffed against HEAD as its own source, a gitlink at mode 160000, and a path newly hidden by an ignore pattern the diff itself adds — plus exit 2 for `assume-unchanged`/`skip-worktree`. Scope with the card's `claim-base` sha; `--base main` over-scopes, `--no-base` is diagnostic only. |
-| `tools/card-scope.test.mjs` | The oracle: real scratch repositories, asserting the collected set against what each test itself created. 52 tests. |
+| `tools/card-scope.test.mjs` | The oracle: real scratch repositories, asserting the collected set against what each test itself created. 52 tests. Both suites run under the repo's own `npm test`. |
 | `agents/*.md` | The five subagents. Tool lists are deliberately narrow — the reviewer has no edit tools, the worker has no web access. |
 | `agents/code-reviewer.md` | Writes **every** verdict. Carries the **rationale** for the mandatory-second-pass list and the semantic contract clause (the list itself lives in `tools/card-scope.mjs`), and establishes the card's file set by running that script itself. Also **stamps the verdict as a label** on the card: `review: approved` / `review: changes requested`, plus the additive `review: comments` for non-blocking findings. |
 | `settings.json` | Read-only allowlist, SessionStart board-reconcile reminder, and the wiring of the PM guard to `Edit|Write|NotebookEdit`. |
 | `hooks/pm-no-direct-edit.sh` | The guard's launcher: finds its sibling `pm-guard.mjs` with pure bash (no external command but `node`) and **maps every failure to exit 2**, because only exit 2 blocks a tool call. Clears `NODE_OPTIONS`/`NODE_PATH` first, so a `--require` preload cannot pre-empt the decision. |
-| `hooks/pm-guard.mjs` | The decision. Refuses the guarded surface in the main session and nothing else; subagents pass through on `agent_id`. Imports the 6 published-contract entries from `tools/card-scope.mjs` (single copy) and adds 8 infrastructure entries of its own. Every uncertainty blocks: malformed payload, absent/bad `cwd`, no git repository, an unknown tool, a missing path, a target the filesystem will not resolve. **The protected root is the guard's own location** (`SELF_ROOT`), never the payload's `cwd` alone. A guarded file is refused however it is reached: absolute, repo-relative, through `..`, from a foreign repository's `cwd`, through a symlink, and case- and Unicode-normalisation-insensitively, because macOS is. |
-| `hooks/pm-guard.test.mjs` | 75 tests, real subprocesses and real git repos. Refusals assert *which* entry matched, so a fail-closed accident cannot masquerade as path matching; the aliasing cases first prove the alias reaches the guarded file by writing through it. |
+| `hooks/pm-guard.mjs` | The decision. Refuses the guarded surface in the main session and nothing else; subagents pass through on `agent_id`. Imports the 6 published-contract entries from `tools/card-scope.mjs` (single copy) and adds 10 infrastructure entries of its own. Every uncertainty blocks: malformed payload, absent/bad `cwd`, no git repository, an unknown tool, a missing path, a target the filesystem will not resolve. **The protected root is the guard's own location** (`SELF_ROOT`), never the payload's `cwd` alone. A guarded file is refused however it is reached: absolute, repo-relative, through `..`, from a foreign repository's `cwd`, through a symlink, and case- and Unicode-normalisation-insensitively, because macOS is. |
+| `hooks/pm-guard.test.mjs` | 79 tests, real subprocesses and real git repos. Refusals assert *which* entry matched, so a fail-closed accident cannot masquerade as path matching; the aliasing cases first prove the alias reaches the guarded file by writing through it. |
 
 ## What the guard refuses here
 
 `hooks/pm-no-direct-edit.sh` runs on every `Edit`, `Write` and `NotebookEdit`. In the main session it
 refuses exactly this surface, and nothing else:
 
-- **The published contract** — `src/styles/`, `styles/`, `src/index.ts`, `docs/DESIGN_SYSTEM.md`,
-  `scripts/check-token-usage.sh`, `eslint-plugin/`: the 6 entries of `CONTRACT_REVIEW_PATHS`, imported
-  from `tools/card-scope.mjs`. These are what a consumer cannot see changing until it breaks, plus the
+- **The published contract** — `src/lib/styles/`, `styles/`, `src/lib/index.ts`,
+  `docs/DESIGN_SYSTEM.md`, `scripts/check-token-usage.sh`, `eslint-plugin/`: the 6 entries of
+  `CONTRACT_REVIEW_PATHS`, imported from `tools/card-scope.mjs`. `src/lib/` is the library root
+  `svelte-package` publishes, which card 06 (KI-570) settled. These are what a consumer cannot see changing until it breaks, plus the
   two guardrails that enforce them — a change narrowing a guardrail narrows every later review.
-- **Build and delivery** — `package.json`, `vite.config.ts`, `.storybook/`, `.github/workflows/`,
-  `.npmrc`, and the harness's own `.claude/settings*.json`, `.claude/hooks/`, `.claude/tools/`: the 8
-  entries the hook adds. `.claude/tools/` is on that list on purpose: the contract list is imported
+- **Build and delivery** — `package.json`, `vite.config.ts`, `svelte.config.js`, `eslint.config.js`,
+  `.storybook/`, `.github/workflows/`, `.npmrc`, and the harness's own `.claude/settings*.json`,
+  `.claude/hooks/`, `.claude/tools/`: the 10 entries the hook adds. `.claude/tools/` is on that list on purpose: the contract list is imported
   from there, so a session that could edit it could empty the list and then edit anything.
 
 **What was dropped in the port, and why it is written down:** the source harness guarded
@@ -104,7 +105,7 @@ designed — their hook input carries `agent_id`.
 ```sh
 # what the guard will refuse, printed rather than recited (contract half):
 node .claude/tools/card-scope.mjs --guarded-paths
-npx vitest run .claude/hooks/pm-guard.test.mjs .claude/tools/card-scope.test.mjs   # 127 tests
+npm test        # runs the repo suite AND both harness suites — 133 tests
 ```
 
 Two limits, stated plainly. It guards the file-editing tools only — an edit through Bash (`sed -i`, a
@@ -169,11 +170,18 @@ additional reader; it does not come back as a per-machine dependency.
 - **The board is the memory across sessions.** Cards carry the "why", the CONTEXT BRIEFs, the RESEARCH
   notes and the REVIEW verdicts — that is what makes a later session able to pick work up.
 
-## Not yet wired, and honest about it
+## State of the surrounding repo
 
-- **`npm test` does not exist.** The two harness suites are real and pass (127 tests), but this repo
-  has no `package.json` until card 06, so nothing gates them automatically and they have to be run
-  with an available vitest binary. Card 06/11 should add them to `npm test`, exactly as upstream does.
-- **Most guarded paths do not exist yet.** `src/styles/`, `src/index.ts` and `eslint-plugin/` arrive
-  with cards 06/08/12. The guard refuses them now, which is the safe direction: a path is guarded
-  before the first file lands in it, not after someone edits it unreviewed.
+- **`npm test` gates the harness, with no extra wiring.** Card 06 (KI-570) landed vitest, and its
+  default include picks up `.claude/tools/card-scope.test.mjs` and `.claude/hooks/pm-guard.test.mjs`
+  — so the guarded surface is checked by the repo's own test command. 133 tests today (131 harness +
+  the skeleton's own). `vite.config.ts` did not have to be touched for it.
+- **`npm run lint` covers `.claude/` too.** ESLint's flat config globs the harness sources, and
+  `.prettierignore` already excludes `.claude`. Three real `no-useless-assignment` findings in the
+  ported code were fixed rather than ignored — the harness is subject to the repo's gates like any
+  other code.
+- **Some guarded paths do not exist yet.** `src/lib/styles/` and `eslint-plugin/` arrive with cards
+  08 and 12. The guard refuses them now, which is the safe direction: a path is guarded before the
+  first file lands in it, not after someone edits it unreviewed.
+- **Storybook is not set up** (card 07). `npm run storybook` exits 1 by design, and every prompt in
+  here says a gate that does not exist is reported as not run, never as passing.

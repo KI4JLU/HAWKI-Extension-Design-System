@@ -201,18 +201,22 @@ export const IGNORE_FILE_BASENAMES = new Set(['.gitignore'])
  * WHAT BELONGS HERE IN A PUBLISHED DESIGN SYSTEM
  * The upstream repo's list was the API spec plus the auth/credential surface — the things a
  * consumer cannot see changing until it breaks. This package has no auth and no API spec; the
- * equivalent surface is what it *promises consumers*:
+ * equivalent surface is what it *promises consumers*. The paths below are the ones card 06
+ * (KI-570) actually created, not guesses: `svelte-package` publishes `src/lib/**` as the package
+ * root, so the library's source lives under `src/lib/`.
  *
- *   src/styles/ , styles/         the two shipped entry points (`full.css`, `tokens.css`), the
- *                                 token definitions and the cascade layers. `docs/DESIGN_SYSTEM.md`
- *                                 makes these a written contract: the semantic-alias rule, the
- *                                 `@layer reset, tokens, base, components, utilities;` statement
- *                                 that must be the first rule of every entry point, and
+ *   src/lib/styles/ , styles/     the two shipped entry points (`styles/full.css`,
+ *                                 `styles/tokens.css`), the token definitions and the cascade
+ *                                 layers. `docs/DESIGN_SYSTEM.md` makes these a written contract:
+ *                                 the semantic-alias rule, the bare `@layer` statement that
+ *                                 `full.css` must open with and `tokens.css` must NOT emit, and
  *                                 `html.darkMode` as the whole dark-mode API. A silent change here
- *                                 breaks every consumer at once and no type checker sees it. Both
- *                                 spellings are listed because card 06 has not yet fixed whether
- *                                 the package ships them from `src/styles/` or a root `styles/`.
- *   src/index.ts                  the export barrel — the package's JS/TS API surface. What is
+ *                                 breaks every consumer at once and no type checker sees it. The
+ *                                 source spelling is guarded because that is what a card edits; the
+ *                                 published spelling is guarded too, in case a build ever writes
+ *                                 into a root `styles/`.
+ *   src/lib/index.ts              the export barrel — the package's JS/TS API surface, and the
+ *                                 file `package.json`'s `exports` map resolves to. What is
  *                                 exported is what consumers pin to.
  *   docs/DESIGN_SYSTEM.md         the contract document itself. Changing the promise is a bigger
  *                                 decision than changing the code that keeps it.
@@ -222,15 +226,16 @@ export const IGNORE_FILE_BASENAMES = new Set(['.gitignore'])
  *                                 that narrows what the check can see narrows every later review,
  *                                 and a passing suite is not evidence that the narrowing was right.
  *
- * Not here on purpose: individual component files. A component is reviewed like any other card;
- * it is the token/CSS/export contract that a second reader is mandatory for. Also not here:
- * `package.json`, `vite.config.ts`, `.storybook/` and CI — the guard refuses those to the main
- * session (`HOOK_ONLY_PATHS` in the hook), but a dependency bump does not need a second pass.
+ * Not here on purpose: individual component files under `src/lib/` (a component is reviewed like
+ * any other card; it is the token/CSS/export contract that a second pass is mandatory for), and the
+ * build/config surface — `package.json`, `vite.config.ts`, `svelte.config.js`, `eslint.config.js`,
+ * `.storybook/` and CI. The guard refuses those to the main session (`HOOK_ONLY_PATHS` in the
+ * hook), but a dependency bump does not need a second pass.
  */
 export const CONTRACT_REVIEW_PATHS = [
-  'src/styles/',
+  'src/lib/styles/',
   'styles/',
-  'src/index.ts',
+  'src/lib/index.ts',
   'docs/DESIGN_SYSTEM.md',
   'scripts/check-token-usage.sh',
   'eslint-plugin/',
@@ -240,8 +245,8 @@ export const CONTRACT_REVIEW_PATHS = [
  * The contract-review entry this path matches, or null.
  *
  * A trailing-slash entry matches by prefix AND matches the slashless path exactly: a
- * reviewer found that `contractReviewMatch('src/styles')` returned null, so a
- * FILE literally named `src/styles` (no slash) would not have triggered the
+ * reviewer found that `contractReviewMatch('src/lib/styles')` returned null, so a
+ * FILE literally named `src/lib/styles` (no slash) would not have triggered the
  * mandatory second pass. It cannot occur in this repo's current layout — the directory of
  * that name already exists, so a file cannot take the same path — but the two-character fix
  * costs nothing and removes the reasoning step.
@@ -841,10 +846,11 @@ function emitDiff(result, write) {
   }
   for (const note of result.notes) write(`# note: ${note}\n`)
 
-  let worktreeDiff = ''
   if (tracked.length > 0) {
     const paths = tracked.map((f) => f.path)
-    worktreeDiff = git(['diff', result.diffFrom, '--', ...paths], cwd).toString('utf8')
+    // Declared inside the block on purpose: nothing below reads it, and a `let` hoisted out of
+    // its only use is what `no-useless-assignment` (the repo's eslint gate) flags.
+    const worktreeDiff = git(['diff', result.diffFrom, '--', ...paths], cwd).toString('utf8')
     write(`\n### ${result.diffFrom}..worktree (tracked, ${tracked.length} path(s))\n`)
     write(worktreeDiff === '' ? '# (no textual difference)\n' : worktreeDiff)
 

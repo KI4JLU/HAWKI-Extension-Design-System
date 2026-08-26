@@ -117,8 +117,10 @@ Rationale for the entries that are not self-evident:
   narrowing was right. Same reasoning as `.claude/tools/` in the guard.
 - **`docs/DESIGN_SYSTEM.md`** is the promise itself. Changing what the package guarantees is a
   bigger decision than changing the code that keeps it.
-- **`styles/` as well as `src/styles/`** because card 06 has not yet fixed where the shipped CSS
-  lives. Two spellings cost nothing; a missed one costs the review.
+- **`styles/` as well as `src/lib/styles/`**: card 06 fixed the source layout (`svelte-package`
+  publishes `src/lib/**`), but the published spelling is what `docs/DESIGN_SYSTEM.md` names, and a
+  build could yet write into a root `styles/`. Two spellings cost nothing; a missed one costs the
+  review.
 - **Individual component files are deliberately absent.** They get this full review like any other
   card. Escalate by hand when the semantic clause applies to one — which it does the moment the
   component introduces or renames a token or an export.
@@ -163,10 +165,12 @@ independent or external reviewer. That track record is why the list is not trust
    of the claim, check it the way `storybook-vitest-addon` describes.
 5. **Check the architecture invariants** (each is a FAIL on its own):
    - **A primitive token or a literal colour in a component** — including inside a `var()` fallback.
-     Run `bash scripts/check-token-usage.sh src` yourself; a non-zero exit is a FAIL, and so is a
-     violation the script cannot see (a literal in a `.ts` file, an inline `style=`).
-   - **A shipped CSS entry point that does not open with** `@layer reset, tokens, base, components,
-     utilities;` as its first rule, before any `@import`.
+     Run `bash scripts/check-token-usage.sh src/lib` yourself; a non-zero exit is a FAIL, and so is
+     a violation the script cannot see (a literal in a `.ts` file, an inline `style=`).
+   - **`styles/full.css` not opening with** `@layer reset, tokens, base, components, utilities;` as
+     its first rule, before any `@import` — **or `styles/tokens.css` emitting it at all.** Both halves
+     are the contract (`docs/DESIGN_SYSTEM.md`, "Cascade layer order"); the second is the one a
+     careless copy gets wrong.
    - **Dark mode implemented as anything other than `html.darkMode`** — a `data-theme` selector, a
      bare `prefers-color-scheme` rule in shipped CSS, or ported `lightMode` bookkeeping.
    - **An exported component without a story**, or a supported variant/state with no story: card 07
@@ -179,8 +183,8 @@ independent or external reviewer. That track record is why the list is not trust
      (the chat-plugin import in `CitationReference.svelte`, `useTranslator` as a hard dependency).
      The licence question is open (card KI-589); large verbatim blocks are a finding.
    - **The harness's own tooling changed without its tests**: if the diff touches
-     `.claude/tools/card-scope.mjs` or `.claude/hooks/pm-guard.mjs`, run
-     `npx vitest run .claude/tools/card-scope.test.mjs .claude/hooks/pm-guard.test.mjs` and check
+     `.claude/tools/card-scope.mjs` or `.claude/hooks/pm-guard.mjs`, note that `npm test` already
+     runs both suites (vitest picks up `.claude/**`) and check
      that a shortened `CONTRACT_REVIEW_PATHS`/`HOOK_ONLY_PATHS`, or a collection source removed, came
      with an argument and not just a passing suite. Both narrow what a later review can see.
 6. **Hygiene/scope:** nothing off-limits got committed (`git check-ignore`), no credentials or tokens
