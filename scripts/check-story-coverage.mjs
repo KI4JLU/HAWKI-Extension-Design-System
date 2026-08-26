@@ -4,9 +4,17 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
+// Keep in sync with the stories glob's extension list in .storybook/main.ts
+// (`*.stories.@(js|ts|svelte)`) — nothing enforces the two staying aligned.
 const STORY_EXTENSIONS = ['svelte', 'ts', 'js'];
 
+// Matches direct `export { default as X } from './X.svelte'` re-exports only
+// (the convention documented in src/docs/Contribution.mdx). A barrel
+// (`export * from './Group'`) or any indirection would not end in `.svelte`
+// and silently isn't tracked — deliberately not handled: this repo has none
+// today, and parsing that correctly needs a real AST, not a regex.
 /** @param {string} indexSource */
 export function extractComponentExports(indexSource) {
 	const exportPaths = [];
@@ -50,6 +58,8 @@ async function main() {
 	process.exitCode = 1;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// pathToFileURL normalizes the OS-specific argv[1] path (backslashes, missing
+// scheme on Windows) into the same form as import.meta.url before comparing.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }

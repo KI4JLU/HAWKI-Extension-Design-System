@@ -1,30 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { collectDesignTokens, type DesignToken } from './collectDesignTokens';
 
-	const PREFIXES = ['--color-', '--spacing-', '--radius-', '--elevation-', '--transition-'];
-
-	let tokens = $state<{ name: string; value: string }[]>([]);
+	let tokens = $state<DesignToken[]>([]);
 
 	onMount(() => {
 		const computed = getComputedStyle(document.documentElement);
-		const found: { name: string; value: string }[] = [];
-		for (const sheet of Array.from(document.styleSheets)) {
-			let rules: CSSRuleList;
-			try {
-				rules = sheet.cssRules;
-			} catch {
-				continue;
-			}
-			for (const rule of Array.from(rules)) {
-				if (!(rule instanceof CSSStyleRule)) continue;
-				for (const prop of Array.from(rule.style)) {
-					if (PREFIXES.some((prefix) => prop.startsWith(prefix))) {
-						found.push({ name: prop, value: computed.getPropertyValue(prop).trim() });
-					}
-				}
-			}
-		}
-		tokens = found;
+		tokens = collectDesignTokens(document.styleSheets, (name) => computed.getPropertyValue(name));
 	});
 </script>
 

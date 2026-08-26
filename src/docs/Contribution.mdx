@@ -25,6 +25,15 @@ enforced rather than aspirational. It runs in CI on every PR.
 
 ## Local checks before opening a PR
 
+`npm run test` includes `@storybook/addon-vitest` running every story in a real Chromium via
+Playwright — the first time, install the browser binary once:
+
+```sh
+npx playwright install chromium
+```
+
+Then:
+
 ```sh
 npm run build              # svelte-package -> dist/, with .d.ts
 npm run check               # svelte-check

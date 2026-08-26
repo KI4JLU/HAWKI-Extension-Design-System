@@ -24,6 +24,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: dist/ contains no story or docs artifacts
+        run: |
+          if find dist -name '*.stories.*' -o -name '*.mdx' | grep -q .; then
+            echo "Story/docs files leaked into dist/ (clean-dist-stories.mjs regressed):"
+            find dist -name '*.stories.*' -o -name '*.mdx'
+            exit 1
+          fi
+
+      - name: Build Storybook
+        run: npm run build-storybook
+
       - name: Type-check
         run: npm run check
 

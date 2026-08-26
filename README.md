@@ -12,21 +12,29 @@ package will be renamed before its first publish (card 13). Internal imports are
 paths (not a self-reference through the package name), so the rename only touches
 `package.json` and this README — not the component source.
 
-Documentation, component usage, and design guidance live in the published Storybook (card 07),
-not in this file.
+Documentation, component usage, and design guidance live in Storybook (`npm run storybook`,
+or the Governance pages under "Introduction" once it's running) — not in this file.
 
 ## Development
 
+`npm run test` runs every story through `@storybook/addon-vitest` in a real Chromium via
+Playwright — install the browser binary once before the first run:
+
 ```sh
-npm install
-npm run build   # svelte-package -> dist/, with .d.ts
-npm run check   # svelte-check
-npm run test    # vitest
-npm run lint     # eslint + prettier --check
-npm run format  # prettier --write
+npx playwright install chromium
 ```
 
-`storybook` / `build-storybook` are stubs — see card 07.
+```sh
+npm install
+npm run build                # svelte-package -> dist/, with .d.ts
+npm run check                # svelte-check
+npm run check:story-coverage # every exported component has a story
+npm run test                  # vitest — unit tests + every story
+npm run lint                   # eslint + prettier --check
+npm run format                 # prettier --write
+npm run storybook              # docs UI, dev server
+npm run build-storybook        # docs UI, static build
+```
 
 ## Stack
 
