@@ -1,6 +1,6 @@
 ---
 name: kanban-doku
-description: Tracks work progress, decisions, and milestones for the HAWKI Extension Design System as cards on this repo's kanban board (kanban-mcp). Use whenever a task is started, the status of an in-progress task changes (e.g. in progress, in review, done), or an interim result/decision should be recorded. Trigger phrases: "put it on the board", "kanban", "create/move a card", "track progress", completing a milestone.
+description: Board coordinates and conventions for the HAWKI Extension Design System's kanban board (kanban-mcp) — list/label ids, the "In Progress mirrors reality" rule, the Needs Decision rule and the review-verdict labels. Read by the project-manager skill and every agent it spawns. Use whenever a task is started, the status of an in-progress task changes (e.g. in progress, in review, done), or an interim result/decision should be recorded. Trigger phrases: "put it on the board", "kanban", "create/move a card", "track progress", completing a milestone.
 ---
 
 # Kanban tracking (kanban-mcp)
@@ -71,6 +71,13 @@ this as "(decided by Sten Seegel)" inline — keep that style.
 
 Cards on this board are written in **English** (titles and descriptions).
 
+## Who writes to this board
+
+The `project-manager` skill (main session) creates, moves and annotates cards. `milestone-worker`
+claims its card (`In Progress`) and hands it on (`Code Review`). `code-reviewer` records the REVIEW
+note, stamps the `review:` label and moves a passing card to `Done`. `planner` creates cards only.
+Nobody else writes here.
+
 ## The core rule: `In Progress` must mirror reality
 
 **Whenever you are actively working a milestone, exactly that card must be in `In Progress`.**
@@ -99,6 +106,56 @@ Concretely, on every substantive task:
 
 At the start of a session, `get_board` and reconcile before doing new work.
 
+## Review-verdict labels (`review: …`)
+
+After a review the card wears its verdict as a label, the way a GitHub PR wears its review state, so
+the board shows the outcome without anyone opening the card.
+
+| Label | publicId | Meaning |
+|---|---|---|
+| `review: approved` | `pekdc0s6z538` | reviewer PASS |
+| `review: changes requested` | `llf38eovpon0` | reviewer FAIL, the card goes back to a worker |
+| `review: comments` | `qllncgnydgva` | **non-blocking** findings are on the card and a human should read them |
+
+- **`approved` and `changes requested` are mutually exclusive.** A new review round **replaces** the
+  state label — remove the old one before setting the new one. A card carrying both is an error state,
+  not a history.
+- **`comments` is additive** and may sit next to `approved`. "Passed, but with open remarks" is the
+  most common real outcome, and exactly the one that used to get lost.
+- **`comments` is not a verdict** but an open in-tray: it stays on the card until the remarks are
+  worked off or explicitly dropped. It is not removed just because the card passed.
+- **The reviewer stamps, not the project manager.** The reviewer renders the verdict, so it records it
+  — `code-reviewer` holds `toggle_card_label` for exactly this. Letting the PM set the label would make
+  the PM the transmitter of a verdict, which is the role the pipeline deliberately keeps away from the
+  agent that spawned the worker and wants the card closed. The board write does not weaken the
+  reviewer's independence: it has `update_card` for the REVIEW note anyway, and it still has no
+  Edit/Write.
+- The non-blocking findings themselves live in the REVIEW note under a literal `NON-BLOCKING:`
+  heading, one list item per finding with file and line. The label advertises them; it does not
+  replace them.
+- **The PM reads an existing `review: comments` out to the developer** when it reports the card. A
+  yellow label nobody mentions is as ineffective as the buried prose it was introduced to replace.
+- **Never create a new `review: …` label** — these three exist, with the ids above.
+
+## Externally blocked cards (`Blocked`)
+
+A card can be scheduled and still be unworkable — waiting on a third party, another team, or a system
+nobody here can reach. `To Do` means "ready to pick up next", so an externally blocked card sitting
+there will be picked as the next milestone by a later session. Mark it:
+
+1. **The card gets the `Blocked` label** (id in the label table above).
+2. **The blocker is named in the description**: what is being waited on, who owns it, since when, and
+   what would unblock it. The label without that sentence is useless to the next session.
+3. **The card stays in `To Do`/`Backlog`** — `In Progress` is for work actually in flight.
+4. **The project manager skips `Blocked` cards when choosing the next work** and spawns no
+   `milestone-worker` for one. If the developer names such a card anyway, report the blocker instead of
+   starting on it.
+5. **When the blocker clears**, remove the label and record in the description what resolved it.
+
+`Blocked` and `Needs Decision` are different states: `Blocked` is "someone else has to act",
+`Needs Decision` is "the developer has to choose". A card waiting on the developer belongs in the
+list, not under the label.
+
 ## When to create a card
 
 - A new milestone is started.
@@ -115,7 +172,18 @@ cards rather than staying prose-only.
 ## Tooling caveats (verified on this kanban server)
 
 - **`update_label`** may require `colourCode` even when you only want to rename a label.
+- **`toggle_card_label` toggles, it does not set.** Called on a label the card already carries, it
+  **removes** it. Read the card's current `labels` with `get_card` first and then toggle only what has
+  to change — otherwise the call strips the very label you meant to apply (a PASS that silently ends
+  up unlabelled, or a FAIL that reads as approved).
 - Use `update_card` `index: 0` to place a moved card at the **top** of its target list.
+- **`update_card`/`create_card` expect real line breaks in the description, not JSON-escaped `\n`.**
+  Passing a string that contains literal `\n` sequences renders the whole card as one unreadable
+  line. Write the description as actual multi-line text; Markdown in it is rendered.
+- **`update_card` replaces the description; it does not append.** `get_card` first and pass the whole
+  text back with your addition — this is how REVIEW notes, CONTEXT BRIEFs and RESEARCH notes
+  accumulate instead of overwriting each other.
+- There is **no list-reorder tool** on this server (see the note under the lists table).
 
 ## What does not belong on the board
 

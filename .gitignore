@@ -1,0 +1,6 @@
+node_modules/
+.vite/
+dist/
+storybook-static/
+.DS_Store
+*.log
