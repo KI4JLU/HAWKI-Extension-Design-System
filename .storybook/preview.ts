@@ -1,11 +1,5 @@
 import type { Preview } from '@storybook/svelte-vite';
-
-// TODO(card 08 — tokens): once the token entry points exist, import the
-// styling contract's standalone entry here (`styles/full.css`, per the
-// KI-568 decision record in docs/DESIGN_SYSTEM.md — Storybook has no
-// pre-existing HAWKI CSS environment, so it is a "standalone" consumer and
-// must use `full.css`, never `tokens.css`). Left empty on purpose rather
-// than silently skipped: see card 07's own scheduling note on this.
+import '../src/lib/styles/full.css';
 
 const THEME_CLASS = 'darkMode';
 

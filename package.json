@@ -10,7 +10,9 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"svelte": "./dist/index.js"
-		}
+		},
+		"./styles/full.css": "./dist/styles/full.css",
+		"./styles/tokens.css": "./dist/styles/tokens.css"
 	},
 	"files": [
 		"dist"

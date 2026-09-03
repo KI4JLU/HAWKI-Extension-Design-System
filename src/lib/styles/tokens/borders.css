@@ -1,0 +1,10 @@
+/* Single-tier scale, per KI-568. Border *color* tokens live in colors.css
+   (--color-border, --color-border-interactive-*) under the --color- prefix. */
+@layer tokens {
+	:root {
+		--border-width-thin: 1px;
+		--border-width-medium: 2px;
+		--border-width-thick: 4px;
+		--border-style-solid: solid;
+	}
+}

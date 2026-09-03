@@ -389,3 +389,130 @@ run live against a temporarily-added component with no story (`DemoNoStory.svelt
 reverted) and confirmed a non-zero exit + the missing export named in the output; the same code path is also
 covered by `tests/check-story-coverage.test.ts`, which includes a test that adds a component without a story
 to a fixture and asserts the check flags exactly that one.
+
+# Design tokens & styling foundation
+
+Decision record for **KI-572 — "08 design tokens & styling foundation"**.
+
+## Values are placeholders — not a KI-589 answer
+
+KI-589 ("02 decision: licence & provenance") is deferred but already imposes a binding clean-room rule:
+HAWKI's token *names* may be matched deliberately (required for hosted-mode interop per KI-568); HAWKI's
+actual numeric values may not be copied or transcribed — including by sampling HAWKI's live rendered site,
+not just its source. **Every numeric value in `src/lib/styles/tokens/*.css` is an independently-derived
+placeholder**, not a value the team has signed off on. Two questions remain open with the team before real
+values get committed: (1) proceed now with self-derived real values under clean-room, or hold at placeholders
+until KI-589 itself resolves; (2) should self-derived values deliberately resemble HAWKI's actual look (serves
+the hosted-mode "look native" goal) or be deliberately distinct (safer clean-room posture). The token
+*architecture* below (names, files, layer wiring, dark-mode mechanism) is independent of that answer — see
+`colors.css`'s own header comment for the value-generation method, which makes swapping the numbers later a
+constants change, not an architecture change.
+
+Two smaller scope questions in the card text turned out to already be resolved by re-reading the raw KI-568
+card (not just this doc's summary of it), so neither needed a fresh team decision:
+- KI-572's "utilities layer if card 04 chose (a)" refers to KI-568's own resolved choice between "(a) only the
+  standalone entry declares layer order" and "(b) namespace our layers" — KI-568 went with (a). No namespacing
+  anywhere; plain layer names throughout, as this card assumes.
+- The two documented token-contract violations (`Avatar.svelte`'s direct primitive reference, `Switch.svelte`'s
+  dead `--shadow-xs`) are explicitly recorded against the component-migration cards (14/15) in KI-568's own
+  closing comment, which called the 14-vs-15 ambiguity "bookkeeping, not a blocker." This card does not
+  preemptively invent the alias/token those fixes will need — that happens at migration time, against a real
+  component.
+
+## File layout
+
+All token/CSS source lives under `src/lib/styles/` — not `src/docs/` (where the card 07 governance pages and
+`collectDesignTokens.ts` live). This matters mechanically: `@sveltejs/package` only packages `src/lib` into
+`dist/`; anything under `src/docs` never ships to consumers. Confirmed by reading `@sveltejs/package`'s
+`process_file`: non-`.svelte`/non-`.ts` files under `src/lib` are copied byte-for-byte to `dist/`, same
+relative path — no build step needed for CSS, and verified post-build (`dist/styles/**/*.css` present,
+directory structure preserved so `@import` relative paths still resolve).
+
+```
+src/lib/styles/
+  full.css              # standalone entry: bare @layer statement + everything
+  tokens.css             # hosted entry: tokens only, never the bare statement
+  properties.css         # @property registrations — unlayered, ships empty (see below)
+  tokens/                # colors, typography, spacing, radius, borders, shadows,
+                          # transitions, breakpoints, z-index — one file per category
+  layers/                # reset, base, utilities
+```
+
+`package.json` gained two `exports` subpaths — `./styles/full.css` and `./styles/tokens.css` — and no others.
+Internal files under `tokens/`/`layers/` have no subpath and are therefore unreachable by a consumer's
+`import`/`require` by construction; this is the enforcement of "two entry points, nothing else," not a lint
+rule.
+
+## Primitive/semantic split, dark mode, interaction-state matrix
+
+`tokens/colors.css` has two `@layer tokens { ... }` blocks — one opening `:root` (primitives + light semantic
+aliases), one opening `html.darkMode` (semantic aliases only, repointed). **Only semantic aliases ever get a
+dark override — primitives are theme-invariant**, so no component ever needs a dark-specific rule of its own.
+The full interaction-state matrix (rest/hover/active/disabled, fill/on-fill/border) is built for exactly one
+role, `interactive` — the only role evidenced in KI-568's record. A second role (`danger`, `secondary`, …) is
+explicitly not built; the naming pattern (`--color-<role>-<state>`) is the template for whenever one's needed.
+Elevation is a neutral, non-color-specific scale (`--elevation-1/2`) — HAWKI's own reference has no tinted
+shadows, so none is invented here.
+
+**Real bug found and fixed along the way:** an earlier draft of `colors.css` wrote the dark-mode selector as
+`:global(html.darkMode)`. That syntax is a Svelte-compiler escape hatch valid only inside a `.svelte`
+component's `<style>` block — in a plain, standalone `.css` file (never touched by Svelte's compiler),
+`:global()` is not valid CSS at all, and the whole rule would have been silently dropped by every browser.
+Fixed to plain `html.darkMode { ... }` before this ever shipped.
+
+## `@property` registrations, global foundation, `components`-layer wiring
+
+`styles/properties.css` is wired (imported unlayered in both entry points, since `@property` can't live in a
+`@layer`) but ships with no actual registrations — HAWKI's reference tokens here (`--drill-stop-*`,
+`--nav-track`, `--aside-track`) back a scroll-drilling mechanic with no evidenced component in this system's v1
+scope. `layers/reset.css` and `layers/base.css` are minimal and uncontroversial (box-sizing, margin reset,
+`:focus-visible` from `--color-focus-ring`, scrollbar styling, link defaults from the `interactive` semantic
+tokens). `layers/utilities.css` ships **opened but deliberately empty** — the layer name must exist in
+`full.css`'s bare statement regardless, but populating it with a utility-class vocabulary now would quietly
+re-open the "not Tailwind" boundary KI-568 closed.
+
+Wiring component `<style>` blocks into the `components` layer (mirroring HAWKI's
+`ComponentCssLayerProcessor.js`) is explicitly **not** built in this card — there's no real component to
+validate a Svelte preprocessor against yet (`Placeholder.svelte` is slated for deletion at card 14 anyway),
+and this card's own dark-mode/token DoD doesn't depend on it. Card 14 should build it against its first real
+component.
+
+## `collectDesignTokens.ts`: two real bugs found once real tokens existed
+
+Card 07's live Tokens page (`collectDesignTokens.ts`) was built and tested against zero real tokens. Wiring
+real ones surfaced two bugs invisible until now:
+
+1. **Missing prefixes.** `DEFAULT_PREFIXES` only covered `--color-`/`--spacing-`/`--radius-`/`--elevation-`/
+   `--transition-`. New families (`--font-`, `--border-`, `--layer-`, `--breakpoint-`) were silently invisible
+   on the live page until added.
+2. **Duplicate-key crash.** The Tokens page keys its rendered list by token name
+   (`{#each tokens as token (token.name)}`). `--color-text` (and others) are legitimately declared in *two*
+   rules — `:root` and the `html.darkMode` override — so the collector was pushing one entry per matching
+   *rule*, producing two `--color-text` entries and crashing Svelte's keyed-each
+   (`each_key_duplicate`). Fixed by collecting distinct property *names* first (a `Set`), then resolving each
+   once via the existing `readValue` callback, which already returns whichever value the cascade currently
+   applies — regardless of which rule declared it. Also now sorts the result by name for a stable render order.
+   Regression-tested with a fixture declaring the same property in two rules.
+
+## Guardrail: a second real, previously-invisible bug
+
+`scripts/check-token-usage.sh` uses `grep -rnE -- '<pattern>' --include="*.svelte" "$TARGET"` — the `--`
+end-of-options marker appears *before* `--include`. Some `grep` implementations (this environment's is
+`ugrep`) stop parsing flags entirely after `--`, silently dropping `--include` instead of erroring — so the
+guardrail was scanning **every file** under `src/`, not just `.svelte` files. Invisible until now because
+`src/` had nothing but `.svelte` files with no color values in it; once real `.css`/`.mdx` content existed
+(which legitimately contains primitives and `oklch()` — that's the whole point of a token file), the guardrail
+started flagging its own token definitions and the Tokens page's own documentation prose. Fixed by moving
+`--include` before the `--` marker. Re-verified clean against the full `src/` tree, including the new CSS.
+
+## Verification
+
+`npm run build` (dist/styles/**/*.css copied verbatim, `@import` paths resolve), `npm run check`, `npm run
+lint`, `npm run test` (unit + every story, including a `Placeholder.stories.svelte` "Theming smoke test" `play`
+function verifying `html.darkMode` actually changes a real browser's resolved `background-color` — a jsdom
+unit test can't verify this, since jsdom doesn't implement a real CSS cascade engine), `npm run build-storybook`
+all green. `scripts/check-token-usage.sh` clean. Storybook's Governance/Tokens page spot-checked against the
+static build: 97 real token rows, sorted, populated live — not the "no design tokens are defined yet" fallback.
+A new `tests/styles-entry-points.test.ts` locks down the single most load-bearing invariant in the card (per
+KI-568's own empirical proof of what breaks if it's backwards): `full.css` contains the bare `@layer` statement
+verbatim, `tokens.css` never does.

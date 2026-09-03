@@ -1,0 +1,107 @@
+/*
+ * PLACEHOLDER VALUES — not final, pending team sign-off (KI-589 clean-room
+ * value-derivation questions, see docs/DESIGN_SYSTEM.md "Design tokens").
+ * Independently derived, not copied from HAWKI — HAWKI's token *names* are
+ * matched deliberately (required for hosted-mode interop, per KI-568); the
+ * numbers below are this package's own and are expected to be replaced.
+ *
+ * Method (so replacing them later is a constants swap, not an architecture
+ * change): a 9-stop oklch() ramp per primitive family, lightness stepped
+ * 0.97 -> 0.20 across stops 100 -> 900, constant chroma per family, a
+ * placeholder hue of 262 (blue-violet) for the accent family. The neutral
+ * family is achromatic (chroma 0). Dark-tuned accent stops (-dark-300/400/500)
+ * use lighter/less-saturated values than their light-ramp counterparts so
+ * they stay legible against a dark surface.
+ */
+
+@layer tokens {
+	:root {
+		/* --- primitives: neutral ramp --- */
+		--color-neutral-0: oklch(1 0 0);
+		--color-neutral-50: oklch(0.98 0 0);
+		--color-neutral-100: oklch(0.95 0 0);
+		--color-neutral-200: oklch(0.9 0 0);
+		--color-neutral-300: oklch(0.84 0 0);
+		--color-neutral-400: oklch(0.7 0 0);
+		--color-neutral-500: oklch(0.56 0 0);
+		--color-neutral-600: oklch(0.46 0 0);
+		--color-neutral-700: oklch(0.36 0 0);
+		--color-neutral-800: oklch(0.24 0 0);
+		--color-neutral-900: oklch(0.14 0 0);
+
+		/* --- primitives: accent ramp --- */
+		--color-accent-100: oklch(0.95 0.03 262);
+		--color-accent-200: oklch(0.9 0.06 262);
+		--color-accent-300: oklch(0.83 0.09 262);
+		--color-accent-400: oklch(0.74 0.12 262);
+		--color-accent-500: oklch(0.64 0.14 262);
+		--color-accent-600: oklch(0.55 0.15 262);
+		--color-accent-700: oklch(0.46 0.15 262);
+		--color-accent-800: oklch(0.37 0.13 262);
+		--color-accent-900: oklch(0.28 0.11 262);
+
+		/* --- primitives: dark-tuned accent stops (used only under html.darkMode) --- */
+		--color-accent-dark-300: oklch(0.8 0.1 262);
+		--color-accent-dark-400: oklch(0.72 0.13 262);
+		--color-accent-dark-500: oklch(0.66 0.15 262);
+
+		/* --- semantic aliases: surfaces & text --- */
+		--color-text: var(--color-neutral-900);
+		--color-text-muted: var(--color-neutral-600);
+		--color-surface: var(--color-neutral-0);
+		--color-surface-elevated: var(--color-neutral-50);
+		--color-border: var(--color-neutral-300);
+		--color-focus-ring: var(--color-accent-500);
+
+		/* --- semantic aliases: interactive role, full state matrix --- */
+		--color-interactive: var(--color-accent-500);
+		--color-interactive-hover: var(--color-accent-600);
+		--color-interactive-active: var(--color-accent-700);
+		--color-interactive-disabled: var(--color-neutral-200);
+
+		--color-on-interactive: var(--color-neutral-0);
+		--color-on-interactive-hover: var(--color-neutral-0);
+		--color-on-interactive-active: var(--color-neutral-0);
+		--color-on-interactive-disabled: var(--color-neutral-500);
+
+		--color-border-interactive: var(--color-accent-500);
+		--color-border-interactive-hover: var(--color-accent-600);
+		--color-border-interactive-active: var(--color-accent-700);
+		--color-border-interactive-disabled: var(--color-neutral-300);
+
+		--color-surface-interactive: var(--color-accent-100);
+		--color-surface-interactive-hover: var(--color-accent-200);
+		--color-surface-interactive-active: var(--color-accent-300);
+	}
+}
+
+@layer tokens {
+	html.darkMode {
+		/* Only semantic aliases are repointed here — primitives are theme-invariant. */
+		--color-text: var(--color-neutral-50);
+		--color-text-muted: var(--color-neutral-400);
+		--color-surface: var(--color-neutral-900);
+		--color-surface-elevated: var(--color-neutral-800);
+		--color-border: var(--color-neutral-700);
+		--color-focus-ring: var(--color-accent-dark-400);
+
+		--color-interactive: var(--color-accent-dark-400);
+		--color-interactive-hover: var(--color-accent-dark-500);
+		--color-interactive-active: var(--color-accent-600);
+		--color-interactive-disabled: var(--color-neutral-700);
+
+		--color-on-interactive: var(--color-neutral-900);
+		--color-on-interactive-hover: var(--color-neutral-900);
+		--color-on-interactive-active: var(--color-neutral-0);
+		--color-on-interactive-disabled: var(--color-neutral-500);
+
+		--color-border-interactive: var(--color-accent-dark-400);
+		--color-border-interactive-hover: var(--color-accent-dark-500);
+		--color-border-interactive-active: var(--color-accent-600);
+		--color-border-interactive-disabled: var(--color-neutral-700);
+
+		--color-surface-interactive: var(--color-neutral-800);
+		--color-surface-interactive-hover: var(--color-neutral-700);
+		--color-surface-interactive-active: var(--color-neutral-600);
+	}
+}

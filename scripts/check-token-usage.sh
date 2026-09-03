@@ -18,8 +18,12 @@ fi
 FAIL=0
 
 # 1. Primitive color tokens used directly instead of a semantic alias.
-PRIMITIVE_HITS=$(grep -rnE -- '--color-accent-(100|200|300|400|500|600|700|800|900|dark-[0-9]+)\b' \
-    --include="*.svelte" "$TARGET" || true)
+#    --include must come before the `--` end-of-options marker — some grep
+#    implementations (e.g. ugrep) stop parsing flags entirely after `--`,
+#    which silently drops the file-type restriction instead of erroring
+#    (only noticed once src/ had non-.svelte files worth excluding).
+PRIMITIVE_HITS=$(grep -rnE --include="*.svelte" -- \
+    '--color-accent-(100|200|300|400|500|600|700|800|900|dark-[0-9]+)\b' "$TARGET" || true)
 
 if [ -n "$PRIMITIVE_HITS" ]; then
     echo "✗ Primitive color token referenced directly (use a semantic alias instead):"

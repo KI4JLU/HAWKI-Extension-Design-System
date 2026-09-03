@@ -1,0 +1,23 @@
+/*
+ * Hosted entry point (KI-568) — for a consumer that already has its own
+ * reset/base in the same document (e.g. HAWKI's own app.css) and only needs
+ * the design tokens. Deliberately does NOT declare cascade-layer order —
+ * see full.css and docs/DESIGN_SYSTEM.md, "Styling contract" > "Cascade
+ * layer order" for why a bare @layer statement here would be unsafe: it
+ * would fix layer order for the *host's* entire document, not just ours.
+ * This file only adds rules into whatever layer positions the host has
+ * already established.
+ */
+
+/* @property registrations cannot live in a @layer per spec — unlayered import. */
+@import './properties.css';
+
+@import './tokens/colors.css';
+@import './tokens/typography.css';
+@import './tokens/spacing.css';
+@import './tokens/radius.css';
+@import './tokens/borders.css';
+@import './tokens/shadows.css';
+@import './tokens/transitions.css';
+@import './tokens/breakpoints.css';
+@import './tokens/z-index.css';

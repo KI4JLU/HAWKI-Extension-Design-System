@@ -1,0 +1,15 @@
+/*
+ * A numeric z-index scale — unrelated to CSS Cascade Layers (@layer), same
+ * word, two different mechanisms (per KI-568). Token *names* match HAWKI's
+ * (--layer-*) for hosted-mode interop; the file is named z-index.css rather
+ * than layers.css purely to avoid colliding with this package's own
+ * layers/ directory (cascade-layer wiring) in conversation and greps.
+ */
+@layer tokens {
+	:root {
+		--layer-app-chrome: 10;
+		--layer-overlay: 100;
+		--layer-toast: 200;
+		--layer-tooltip: 300;
+	}
+}

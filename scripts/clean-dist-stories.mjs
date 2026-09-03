@@ -6,6 +6,7 @@
 import { existsSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const distDir = path.resolve('dist');
 
@@ -26,11 +27,20 @@ async function walk(dir) {
 	}
 }
 
-if (!existsSync(distDir)) {
-	console.error(
-		`clean-dist-stories: expected '${distDir}' to exist (svelte-package should have created it). Nothing to clean, but that's unexpected — check the build step above.`
-	);
-	process.exit(1);
+async function main() {
+	if (!existsSync(distDir)) {
+		console.error(
+			`clean-dist-stories: expected '${distDir}' to exist (svelte-package should have created it). Nothing to clean, but that's unexpected — check the build step above.`
+		);
+		process.exit(1);
+	}
+
+	await walk(distDir);
 }
 
-await walk(distDir);
+// Guarded the same way as check-story-coverage.mjs — importing this module
+// for `isStoryOrDocsArtifact` (as its own test does) must not also run the
+// cleanup/exit side effect.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+	await main();
+}

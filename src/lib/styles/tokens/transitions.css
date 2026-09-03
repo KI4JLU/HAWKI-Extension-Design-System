@@ -1,0 +1,9 @@
+/* Single-tier scale, per KI-568. */
+@layer tokens {
+	:root {
+		--transition-duration-fast: 100ms;
+		--transition-duration-base: 200ms;
+		--transition-duration-slow: 300ms;
+		--transition-easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+	}
+}

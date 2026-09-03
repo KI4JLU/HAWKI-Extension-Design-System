@@ -1,0 +1,9 @@
+/*
+ * Reserved, deliberately empty. The `utilities` layer name must exist in
+ * full.css's bare @layer statement regardless of whether it has content —
+ * populating it with a utility-class vocabulary now would quietly re-open
+ * the "not Tailwind" boundary KI-568 closed. Add a specific utility only
+ * when a real component need justifies it.
+ */
+@layer utilities {
+}

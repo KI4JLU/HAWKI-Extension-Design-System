@@ -1,0 +1,26 @@
+/* Single-tier scale, per KI-568 — no primitive/semantic split for typography. */
+@layer tokens {
+	:root {
+		--font-family-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+		--font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+		/* Modular scale, ratio 1.2, base 1rem. */
+		--font-size-xs: 0.694rem;
+		--font-size-sm: 0.833rem;
+		--font-size-base: 1rem;
+		--font-size-md: 1.2rem;
+		--font-size-lg: 1.44rem;
+		--font-size-xl: 1.728rem;
+		--font-size-2xl: 2.074rem;
+		--font-size-3xl: 2.488rem;
+
+		--font-weight-regular: 400;
+		--font-weight-medium: 500;
+		--font-weight-semibold: 600;
+		--font-weight-bold: 700;
+
+		--font-line-height-tight: 1.2;
+		--font-line-height-normal: 1.5;
+		--font-line-height-relaxed: 1.75;
+	}
+}

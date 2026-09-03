@@ -1,0 +1,19 @@
+/*
+ * @property registrations. Per the CSS spec, @property cannot be wrapped in
+ * a @layer (it isn't a conditional rule) — this file is imported unlayered
+ * in both entry points, same as HAWKI's own properties.css.
+ *
+ * Intentionally empty for now. HAWKI's reference tokens here
+ * (--drill-stop-1/2/3, --nav-track, --aside-track) back a scroll-drilling /
+ * sticky-nav mechanic with no evidenced equivalent component in this
+ * system's v1 scope (see docs/DESIGN_SYSTEM.md, v1 component inventory).
+ * Add real registrations here once a component actually needs one — this
+ * file and its import in both entry points exist so that's a one-file
+ * addition, not a retrofit.
+ *
+ * Note for whoever adds the first one: src/docs/collectDesignTokens.ts's
+ * live Tokens page only walks CSSStyleRule instances (custom properties
+ * declared via `--name: value` inside a normal rule) — a property declared
+ * *only* through @property with no accompanying :root declaration won't
+ * appear there. Pair every @property registration with a :root value.
+ */

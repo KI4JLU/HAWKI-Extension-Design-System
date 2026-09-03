@@ -1,0 +1,27 @@
+/*
+ * Standalone entry point (KI-568) — for an extension's own page, Storybook,
+ * or any consumer with no pre-existing HAWKI CSS environment. This is the
+ * ONLY place that declares the cascade-layer order; see tokens.css for the
+ * hosted entry, which must never do this (see docs/DESIGN_SYSTEM.md,
+ * "Styling contract" > "Cascade layer order" for why the split is this way
+ * round, verified empirically, not just reasoned about).
+ */
+@layer reset, tokens, base, components, utilities;
+
+/* @property registrations cannot live in a @layer per spec — unlayered import. */
+@import './properties.css';
+
+@import './layers/reset.css';
+
+@import './tokens/colors.css';
+@import './tokens/typography.css';
+@import './tokens/spacing.css';
+@import './tokens/radius.css';
+@import './tokens/borders.css';
+@import './tokens/shadows.css';
+@import './tokens/transitions.css';
+@import './tokens/breakpoints.css';
+@import './tokens/z-index.css';
+
+@import './layers/base.css';
+@import './layers/utilities.css';

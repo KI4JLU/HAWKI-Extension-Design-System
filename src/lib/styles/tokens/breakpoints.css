@@ -1,0 +1,16 @@
+/*
+ * Single-tier scale, per KI-568. Useful for the live Tokens page and any JS
+ * consumer (e.g. a future matchMedia helper) — but custom properties cannot
+ * be interpolated into a @media feature value in any shipping standard
+ * today. Any real @media rule in base.css/utilities.css must hardcode the
+ * literal value with a comment pointing back at the matching token here, so
+ * the two don't silently drift.
+ */
+@layer tokens {
+	:root {
+		--breakpoint-sm: 640px;
+		--breakpoint-md: 768px;
+		--breakpoint-lg: 1024px;
+		--breakpoint-xl: 1280px;
+	}
+}

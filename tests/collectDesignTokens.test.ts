@@ -46,4 +46,22 @@ describe('collectDesignTokens', () => {
 	it('returns nothing for an empty stylesheet list, as it does before card 08 lands', () => {
 		expect(collectDesignTokens([], () => '')).toEqual([]);
 	});
+
+	it('deduplicates a property declared in more than one rule (e.g. :root and a dark override) — regression for a keyed-each crash', () => {
+		const sheet = styleSheetFrom(
+			'@layer tokens { :root { --color-text: black; } } @layer tokens { html.darkMode { --color-text: white; } }'
+		);
+
+		const tokens = collectDesignTokens([sheet], () => 'white');
+
+		expect(tokens).toEqual([{ name: '--color-text', value: 'white' }]);
+	});
+
+	it('returns tokens sorted by name for stable rendering order', () => {
+		const sheet = styleSheetFrom(':root { --spacing-2: 1; --color-text: 1; --radius-sm: 1; }');
+
+		const tokens = collectDesignTokens([sheet], () => '1');
+
+		expect(tokens.map((t) => t.name)).toEqual(['--color-text', '--radius-sm', '--spacing-2']);
+	});
 });
