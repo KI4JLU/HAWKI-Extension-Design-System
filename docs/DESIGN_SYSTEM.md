@@ -400,13 +400,27 @@ KI-589 ("02 decision: licence & provenance") is deferred but already imposes a b
 HAWKI's token *names* may be matched deliberately (required for hosted-mode interop per KI-568); HAWKI's
 actual numeric values may not be copied or transcribed — including by sampling HAWKI's live rendered site,
 not just its source. **Every numeric value in `src/lib/styles/tokens/*.css` is an independently-derived
-placeholder**, not a value the team has signed off on. Two questions remain open with the team before real
-values get committed: (1) proceed now with self-derived real values under clean-room, or hold at placeholders
-until KI-589 itself resolves; (2) should self-derived values deliberately resemble HAWKI's actual look (serves
-the hosted-mode "look native" goal) or be deliberately distinct (safer clean-room posture). The token
-*architecture* below (names, files, layer wiring, dark-mode mechanism) is independent of that answer — see
-`colors.css`'s own header comment for the value-generation method, which makes swapping the numbers later a
-constants change, not an architecture change.
+placeholder**, not a value the team has signed off on.
+
+**Decision (2026-09-04, Niklas Bender)**, resolving the two questions this section previously left open:
+
+1. **Values stay placeholders for now.** Real values are not derived or committed yet, even under
+   clean-room — that waits for KI-589 (licence/provenance) to resolve first, rather than proceeding
+   immediately. No value changes follow from this decision: nothing in `src/lib/styles/tokens/*.css`
+   changes — every file remains exactly as KI-572 shipped it, `colors.css`'s "PLACEHOLDER VALUES" header
+   comment included.
+2. **Future direction, for when real values are eventually built: deliberately resemble HAWKI's actual
+   look** (hue family, contrast character) — the hosted-mode "look native inside HAWKI" goal wins over a
+   deliberately-distinct clean-room posture. This decides only the *shape* future values converge on, not
+   how they get produced: derivation stays independent — still never copied, transcribed, or sampled from
+   HAWKI's source or its live rendered site. The clean-room derivation method `colors.css`'s own header
+   comment describes (a stepped `oklch()` ramp, chosen constants) is unaffected by this decision and
+   remains how those future values will be produced.
+
+The token *architecture* below (names, files, layer wiring, dark-mode mechanism) was never blocked on
+either question and needs no change here — see `colors.css`'s own header comment for the still-current
+value-generation method, which makes swapping the numbers later a constants change, not an architecture
+change.
 
 Two smaller scope questions in the card text turned out to already be resolved by re-reading the raw KI-568
 card (not just this doc's summary of it), so neither needed a fresh team decision:

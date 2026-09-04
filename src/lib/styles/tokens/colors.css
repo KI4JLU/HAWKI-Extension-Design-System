@@ -1,9 +1,15 @@
 /*
- * PLACEHOLDER VALUES — not final, pending team sign-off (KI-589 clean-room
- * value-derivation questions, see docs/DESIGN_SYSTEM.md "Design tokens").
+ * PLACEHOLDER VALUES — not final, held here until KI-589 (licence &
+ * provenance) resolves (2026-09-04 decision, Niklas Bender — see
+ * docs/DESIGN_SYSTEM.md "Values are placeholders — not a KI-589 answer").
  * Independently derived, not copied from HAWKI — HAWKI's token *names* are
  * matched deliberately (required for hosted-mode interop, per KI-568); the
- * numbers below are this package's own and are expected to be replaced.
+ * numbers below are this package's own and are expected to be replaced. The
+ * same decision records the future direction for that replacement: real
+ * values should deliberately resemble HAWKI's actual look (hue family,
+ * contrast character) — a target for the *shape* of future values only, not
+ * a license to copy, transcribe, or sample HAWKI's actual numbers. The
+ * derivation method below is unaffected.
  *
  * Method (so replacing them later is a constants swap, not an architecture
  * change): a 9-stop oklch() ramp per primitive family, lightness stepped
